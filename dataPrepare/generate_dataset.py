@@ -1182,28 +1182,28 @@ class World(object):
 
             ############################################################################################################
             if v[0].attributes['role_name'] == 'hero':
-                # # check speed limit
-                # affected_speed_limit_text = self.hero_actor.get_speed_limit()
-                # if math.isnan(affected_speed_limit_text):
-                #     affected_speed_limit_text = 0.0
-                # color = pygame.Color(0, 255, 0)
-                # if affected_speed_limit_text == 60:
-                #     color = pygame.Color(255, 255, 0)
-                # elif affected_speed_limit_text == 90:
-                #     color = pygame.Color(0, 255, 255)
-                #
-                # # check traffic light
-                # if self.affected_traffic_light is not None:
-                #     state = self.affected_traffic_light.state
-                #     if state == carla.TrafficLightState.Red:
-                #         color = pygame.Color(255, 0, 255)
-                #
-                # waypoint = self.town_map.get_waypoint(self.hero_actor.get_location())
-                # for dist in range(1, 60):
-                #     wp_next_list = waypoint.next(dist)
-                #     for wp_next in wp_next_list:
-                #         pos = world_to_pixel(carla.Location(x=wp_next.transform.location.x, y=wp_next.transform.location.y))
-                #         pygame.draw.circle(surface, color, pos, 2)
+                # check speed limit
+                affected_speed_limit_text = self.hero_actor.get_speed_limit()
+                if math.isnan(affected_speed_limit_text):
+                    affected_speed_limit_text = 0.0
+                color = pygame.Color(0, 255, 0)
+                if affected_speed_limit_text == 60:
+                    color = pygame.Color(255, 255, 0)
+                elif affected_speed_limit_text == 90:
+                    color = pygame.Color(0, 255, 255)
+
+                # check traffic light
+                if self.affected_traffic_light is not None:
+                    state = self.affected_traffic_light.state
+                    if state == carla.TrafficLightState.Red:
+                        color = pygame.Color(255, 0, 255)
+
+                waypoint = self.town_map.get_waypoint(self.hero_actor.get_location())
+                for dist in range(1, 60):
+                    wp_next_list = waypoint.next(dist)
+                    for wp_next in wp_next_list:
+                        pos = world_to_pixel(carla.Location(x=wp_next.transform.location.x, y=wp_next.transform.location.y))
+                        pygame.draw.circle(surface, color, pos, 2)
 
                 # past trajectory
                 if len(self.hero_past_traj) == PAST_TRAJECTORY_TIME_INTERVAL:
@@ -1390,8 +1390,8 @@ class World(object):
         rotated_x = pos[0] * math.cos(angle / 180 * math.pi) - pos[1] * math.sin(angle / 180 * math.pi)
         rotated_y = pos[0] * math.sin(angle / 180 * math.pi) + pos[1] * math.cos(angle / 180 * math.pi)
 
-        pos[0] = int(rotated_x + img_res[0] / 2)
-        pos[1] = int(rotated_y + img_res[1] / 2)
+        pos[0] = int(rotated_x + img_res[0] / 2 + 0.5)
+        pos[1] = int(rotated_y + img_res[1] / 2 + 0.5)
 
         return pos
 
@@ -1406,6 +1406,16 @@ class World(object):
         speed_limit = self.hero_actor.get_speed_limit()
         hero_speed = self.hero_actor.get_velocity()
         hero_speed_text = 3.6 * math.sqrt(hero_speed.x ** 2 + hero_speed.y ** 2 + hero_speed.z ** 2)
+
+        state = 'None'
+        if self.affected_traffic_light is not None:
+            state = self.affected_traffic_light.state
+            if state == carla.TrafficLightState.Red:
+                state = 'Red'
+            elif state == carla.TrafficLightState.Yellow:
+                state = 'Yellow'
+            else:
+                state = 'Green'
 
         hero_location_screen = self.map_image.world_to_pixel(self.hero_transform.location)
         hero_front = self.hero_transform.get_forward_vector()
@@ -1427,6 +1437,7 @@ class World(object):
         f.write("road_id\n" + str(road_id) + "\n")
         f.write("speed_limit\n" + str(speed_limit) + "\n")
         f.write("speed\n" + str(hero_speed_text) + "\n")
+        f.write("traffic_light\n" + state + "\n")
 
         f.write("translation_offset\n")
         f.write(str(translation_offset[0]) + "," + str(translation_offset[1]) + "\n")
