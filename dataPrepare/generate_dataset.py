@@ -1182,28 +1182,28 @@ class World(object):
 
             ############################################################################################################
             if v[0].attributes['role_name'] == 'hero':
-                # check speed limit
-                affected_speed_limit_text = self.hero_actor.get_speed_limit()
-                if math.isnan(affected_speed_limit_text):
-                    affected_speed_limit_text = 0.0
-                color = pygame.Color(0, 255, 0)
-                if affected_speed_limit_text == 60:
-                    color = pygame.Color(255, 255, 0)
-                elif affected_speed_limit_text == 90:
-                    color = pygame.Color(0, 255, 255)
-
-                # check traffic light
-                if self.affected_traffic_light is not None:
-                    state = self.affected_traffic_light.state
-                    if state == carla.TrafficLightState.Red:
-                        color = pygame.Color(255, 0, 255)
-
-                waypoint = self.town_map.get_waypoint(self.hero_actor.get_location())
-                for dist in range(1, 60):
-                    wp_next_list = waypoint.next(dist)
-                    for wp_next in wp_next_list:
-                        pos = world_to_pixel(carla.Location(x=wp_next.transform.location.x, y=wp_next.transform.location.y))
-                        pygame.draw.circle(surface, color, pos, 2)
+                # # check speed limit
+                # affected_speed_limit_text = self.hero_actor.get_speed_limit()
+                # if math.isnan(affected_speed_limit_text):
+                #     affected_speed_limit_text = 0.0
+                # color = pygame.Color(0, 255, 0)
+                # if affected_speed_limit_text == 60:
+                #     color = pygame.Color(255, 255, 0)
+                # elif affected_speed_limit_text == 90:
+                #     color = pygame.Color(0, 255, 255)
+                #
+                # # check traffic light
+                # if self.affected_traffic_light is not None:
+                #     state = self.affected_traffic_light.state
+                #     if state == carla.TrafficLightState.Red:
+                #         color = pygame.Color(255, 0, 255)
+                #
+                # waypoint = self.town_map.get_waypoint(self.hero_actor.get_location())
+                # for dist in range(1, 60):
+                #     wp_next_list = waypoint.next(dist)
+                #     for wp_next in wp_next_list:
+                #         pos = world_to_pixel(carla.Location(x=wp_next.transform.location.x, y=wp_next.transform.location.y))
+                #         pygame.draw.circle(surface, color, pos, 2)
 
                 # past trajectory
                 if len(self.hero_past_traj) == PAST_TRAJECTORY_TIME_INTERVAL:
@@ -1403,6 +1403,7 @@ class World(object):
         x = self.hero_actor.get_location().x
         y = self.hero_actor.get_location().y
         road_id = waypoint.road_id
+        is_junction = waypoint.is_junction
         speed_limit = self.hero_actor.get_speed_limit()
         hero_speed = self.hero_actor.get_velocity()
         hero_speed_text = 3.6 * math.sqrt(hero_speed.x ** 2 + hero_speed.y ** 2 + hero_speed.z ** 2)
@@ -1435,6 +1436,7 @@ class World(object):
         f.write("time\n" + str(t) + "\n")
         f.write("hero_global_pos\n" + str(x) + "," + str(y) + "\n")
         f.write("road_id\n" + str(road_id) + "\n")
+        f.write("is_junction\n" + str(is_junction) + "\n")
         f.write("speed_limit\n" + str(speed_limit) + "\n")
         f.write("speed\n" + str(hero_speed_text) + "\n")
         f.write("traffic_light\n" + state + "\n")
