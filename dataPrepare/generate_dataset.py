@@ -155,7 +155,7 @@ HERO_DEFAULT_SCALE = 1
 PIXELS_AHEAD_VEHICLE = 150
 
 ##################################################################################
-PAST_TRAJECTORY_TIME_INTERVAL = 10
+PAST_TRAJECTORY_TIME_INTERVAL = 30
 DATA_LOG_DIR = "../../data/"
 ##################################################################################
 

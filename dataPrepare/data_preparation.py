@@ -19,6 +19,7 @@ import cv2
 import logging
 import argparse
 import math
+import numpy as np
 
 # ==============================================================================
 # -- Constants -----------------------------------------------------------------
@@ -26,6 +27,9 @@ import math
 
 DATA_DIR = "../../data/"
 # DATA_DIR = "sample/"
+
+TIME_PAST = 10
+TIME_FUTURE = 10
 
 # ==============================================================================
 # -- Functuion -----------------------------------------------------------------
@@ -61,14 +65,14 @@ def load_txt(dir, time):
     data['angle'] = float(fl[17])
 
     data['hero_past_traj'] = []
-    for pos in fl[19:(19+time)]:
+    for pos in fl[(19+time-TIME_PAST):(19+time)]:
         data['hero_past_traj'].append([int(i) for i in pos.split(",")])
 
     data['actor_past_traj'] = []
-    num = int((len(fl) - 30) / (time+1))
+    num = int((len(fl) - 20 - time) / (time+1))
     for ii in range(num):
         past_pos = []
-        for pos in fl[(31+ii*(time+1)):(31+time+ii*(time+1))]:
+        for pos in fl[(21+time+time-TIME_PAST+ii*(time+1)):(21+time+time+ii*(time+1))]:
             past_pos.append([int(i) for i in pos.split(",")])
         data['actor_past_traj'].append(past_pos)
 
@@ -92,7 +96,6 @@ class World(object):
         for ind in range(self.args.sequence_ind[0], self.args.sequence_ind[1]+1):
             txt_dir = DATA_DIR + 'txt/' + str(ind) + '.txt'
             self.log[ind] = load_txt(txt_dir, args.past_time_interval)
-
 
     def _get_data_from_carla(self):
         try:
@@ -144,12 +147,6 @@ class World(object):
             pos = self.world_to_pixel(carla.Location(x=wp.transform.location.x, y=wp.transform.location.y))
             map[pos[1]-2:pos[1]+3, pos[0]-2:pos[0]+3] = [0, 255, 0]
 
-        # map = cv2.resize(map, (1800, 1800))
-        # cv2.imshow('map', map)
-        # while True:
-        #     k = cv2.waitKey(1)
-        #     if k == 27:
-        #         break
 
     def generate_routing(self, ind, img):
         res = self.args.image_res
@@ -160,8 +157,8 @@ class World(object):
         while continue_frame < 2:
             i_f = i_f + 1
             if i_f > self.args.sequence_ind[1]:
-                print("Reach the final frame")
-                sys.exit()
+                print("Reach the final frame!")
+                return False, img
 
             pos_f = self.log[i_f]['hero_global_pos']
             pos = self.global_to_img_coordinate(pos_f, ind)
@@ -197,9 +194,24 @@ class World(object):
             if flag:
                 break
 
-        # b. extract the waypoint as routing
+        # b. check the traffic light and speed limit
+        if self.log[ind]['traffic_light'] == 'Red':
+            color = [255, 0, 255]
+        elif self.log[ind]['traffic_light'] == 'Yellow':
+            color = [0, 255, 255]
+        else:
+            if self.log[ind]['speed_limit'] == 30:
+                color = [0, 255, 0]
+            elif self.log[ind]['speed_limit'] == 60:
+                color = [80, 255, 80]
+            else:
+                color = [160, 255, 160]
+
+        # c. extract the waypoint as routing
         previous_flag = True
-        for dist in range(1, 100):
+        previous_point = (352, 460)
+        for dist in range(6, 200):
+            dist = dist * 0.5
             wp_next_list = waypoint.next(dist)
 
             if len(wp_next_list) > 1:
@@ -221,24 +233,26 @@ class World(object):
             pos = self.global_to_img_coordinate(pos, ind)
 
             # Remove some previous points
-            if pos[1] <= 502 and previous_flag:
+            if pos[1] <= 460 and previous_flag:
                 previous_flag = False
-            if pos[1] > 502 and previous_flag:
+            if pos[1] > 460 and previous_flag:
                 continue
 
-            if pos[0] >= 0 and pos[0] < res[0] and pos[1] >= 0 and pos[1] < res[1]:
-                img[pos[1]-2:pos[1]+3, pos[0]-2:pos[0]+3] = [0, 255, 0]
+            if pos[0] >= 0-8 and pos[0] < res[0]+8 and pos[1] >= 0-8 and pos[1] < res[1]+8:
+                # img[pos[1]-2:pos[1]+3, pos[0]-2:pos[0]+3] = color
+                cv2.line(img, previous_point, (pos[0], pos[1]), color, 5)
+                previous_point = (pos[0], pos[1])
 
-        return img
+        return True, img
 
     def add_past_traj(self, hd_map, ind):
         res = self.args.image_res
 
-        decrease = int(255 / (self.args.past_time_interval + 1)) - 1
+        decrease = int(255 / (TIME_PAST + 1)) - 1
         color = [255 - decrease, 255 - decrease, 255]
         for past_pos in self.log[ind]['hero_past_traj']:
             if past_pos[0] >= 0 and past_pos[0] < res[0] and past_pos[1] >= 0 and past_pos[1] < res[1]:
-                hd_map[past_pos[1] - 1:past_pos[1] + 2, past_pos[0] - 1:past_pos[0] + 2] = color
+                hd_map[past_pos[1] - 2:past_pos[1] + 3, past_pos[0] - 2:past_pos[0] + 3] = color
                 # hd_map[past_pos[1], past_pos[0]] = [255, 255, 255]
             color[0] = color[0] - decrease
             color[1] = color[1] - decrease
@@ -247,58 +261,58 @@ class World(object):
             color = [255, 255 - decrease, 255 - decrease]
             for past_pos in vehicle_pos:
                 if past_pos[0] >= 0 and past_pos[0] < res[0] and past_pos[1] >= 0 and past_pos[1] < res[1]:
-                    hd_map[past_pos[1] - 1:past_pos[1] + 2, past_pos[0] - 1:past_pos[0] + 2] = color
+                    hd_map[past_pos[1] - 2:past_pos[1] + 3, past_pos[0] - 2:past_pos[0] + 3] = color
                     # hd_map[past_pos[1], past_pos[0]] = [255, 255, 255]
                 color[1] = color[1] - decrease
                 color[2] = color[2] - decrease
 
         return hd_map
 
-    def get_future_traj(self, ind, time):
+    def get_future_traj(self, ind):
         res = self.args.image_res
         traj = []
-        for i in range(ind+1, ind+time+1):
+        img = np.zeros((self.args.image_res[0], self.args.image_res[1], 3), np.uint8)
+        for i in range(ind+1, ind+TIME_FUTURE+1):
             pos = self.log[i]['hero_global_pos']
-            pos = self.global_to_img_coordinate(pos, i)
+            pos = self.global_to_img_coordinate(pos, ind)
             if pos[0] >= 0 and pos[0] < res[0] and pos[1] >= 0 and pos[1] < res[1]:
                 traj.append(pos)
+                img[pos[1] - 1:pos[1] + 2, pos[0] - 1:pos[0] + 2] = [255, 255, 255]
+        cv2.imshow('future trajectory', img)
 
         return traj
 
 
-
-
 def data_process(args):
     world = World(args, timeout=2.0)
+    outVideo = cv2.VideoWriter('../../data/out.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 10,
+                               (args.image_res[0], args.image_res[1]))
 
-    # for ind in range(args.sequence_ind[0], args.sequence_ind[1]):
-    for ind in range(4000, args.sequence_ind[1]):
+    for ind in range(args.sequence_ind[0], args.sequence_ind[1]):
+    # for ind in range(684, args.sequence_ind[1]):
         print(ind)
+        # ind = 4035
 
-        ind = 4035
         img_dir = DATA_DIR + 'img/' + str(ind) + '.png'
-        txt_dir = DATA_DIR + 'txt/' + str(ind) + '.txt'
+        inputImg = cv2.imread(img_dir)
 
-        log = load_txt(txt_dir, args.past_time_interval)
-        print("road id: ", log['road_id'])
-        print("is junction: ", log['is_junction'])
-        hd_map = cv2.imread(img_dir)
+        traj = world.get_future_traj(ind)
+        inputImg = world.add_past_traj(inputImg, ind)
+        stopToken, inputImg = world.generate_routing(ind, inputImg)
 
-        traj = world.get_future_traj(ind, 10)
-        hd_map = world.add_past_traj(hd_map, ind)
-        hd_map = world.generate_routing(ind, hd_map)
+        if not stopToken:
+            break
+        cv2.imshow("input", inputImg)
+        outVideo.write(inputImg)
 
-        cv2.imshow("input", hd_map)
+        # while True:
+        #     k = cv2.waitKey(1)
+        #     if k == 27:
+        #         break
 
-        # print(log['traffic_light'])
+        cv2.waitKey(1)
 
-        while True:
-            k = cv2.waitKey(1)
-            if k == 27:
-                break
-
-        cv2.waitKey(30)
-
+    outVideo.release()
     cv2.destroyAllWindows()
 
 
