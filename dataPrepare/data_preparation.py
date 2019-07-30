@@ -31,6 +31,9 @@ DATA_DIR = "../../data/"
 TIME_PAST = 10
 TIME_FUTURE = 10
 
+TRAINING_DIRECTORY = 'train'
+VALIDATION_DIRECTORY = 'validation'
+
 # ==============================================================================
 # -- Functuion -----------------------------------------------------------------
 # ==============================================================================
@@ -316,6 +319,12 @@ def data_process(args):
     cv2.destroyAllWindows()
 
 
+def convert_to_tf_records(raw_data_dir):
+    """ Convert the raw dataset into TF-Record dumps"""
+    training_files = tf.gfile.Glob(
+        os.path.join(raw_data_dir, TRAINING_DIRECTORY, '*', )
+    )
+
 def main():
     # Parse arguments
     argparser = argparse.ArgumentParser(
@@ -342,7 +351,10 @@ def main():
 
     args = load_parms(DATA_DIR + "parms.txt", args)
 
-    data_process(args)
+    # data_process(args)
+
+    # Convert the raw data into tf-records
+    training_records, validation_records = convert_to_tf_records(DATA_DIR)
 
 
 if __name__ == '__main__':
