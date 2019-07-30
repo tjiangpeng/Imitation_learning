@@ -20,6 +20,7 @@ import logging
 import argparse
 import math
 import numpy as np
+import tensorflow as tf
 
 # ==============================================================================
 # -- Constants -----------------------------------------------------------------
@@ -319,11 +320,36 @@ def data_process(args):
     cv2.destroyAllWindows()
 
 
+def _check_or_create_dir(directory):
+    """Check if drectory exists otherwise create it"""
+    if not tf.gfile.Exists(directory):
+        tf.gfile.MakeDirs(directory)
+
+
+def _process_dataset(image_names, log_names, output_directory):
+    """Processes and saves list of images as TFRecords."""
+
+    _check_or_create_dir(output_directory)
+
+
+    pass
+
+
 def convert_to_tf_records(raw_data_dir):
     """ Convert the raw dataset into TF-Record dumps"""
-    training_files = tf.gfile.Glob(
-        os.path.join(raw_data_dir, TRAINING_DIRECTORY, '*', )
-    )
+
+    # Glob all the training files
+    training_images = sorted(tf.gfile.Glob(
+        os.path.join(raw_data_dir, TRAINING_DIRECTORY, 'img', '*.png')))
+
+    training_logs = sorted(tf.gfile.Glob(
+        os.path.join(raw_data_dir, TRAINING_DIRECTORY, 'txt', '*.txt')))
+
+    # Create training data
+    tf.logging.info('Processing the training data.')
+    training_records = _process_dataset(training_images, training_logs)
+
+    a = 1
 
 def main():
     # Parse arguments
@@ -349,7 +375,7 @@ def main():
     args = argparser.parse_args()
     args.description = argparser.description
 
-    args = load_parms(DATA_DIR + "parms.txt", args)
+    # args = load_parms(DATA_DIR + "parms.txt", args)
 
     # data_process(args)
 
