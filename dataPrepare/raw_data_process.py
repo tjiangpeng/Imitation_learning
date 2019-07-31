@@ -17,28 +17,19 @@ except IndexError:
 import carla
 import cv2
 import logging
-import argparse
 import math
 import numpy as np
-import tensorflow as tf
 
 # ==============================================================================
 # -- Constants -----------------------------------------------------------------
 # ==============================================================================
 
-DATA_DIR = "../../data/"
-# DATA_DIR = "sample/"
-
 TIME_PAST = 10
 TIME_FUTURE = 10
-
-TRAINING_DIRECTORY = 'train'
-VALIDATION_DIRECTORY = 'validation'
 
 # ==============================================================================
 # -- Functuion -----------------------------------------------------------------
 # ==============================================================================
-
 
 def load_parms(dir, args):
     f = open(dir, "r")
@@ -48,7 +39,7 @@ def load_parms(dir, args):
     args.pixels_ahead_hero = int(fl[3])
     args.past_time_interval = int(fl[5])
     args.image_res = [int(i) for i in fl[7].split(',')]
-    args.sequence_ind = [int(i) for i in fl[9].split(',')]
+    # args.sequence_ind = [int(i) for i in fl[9].split(',')]
 
     return args
 
@@ -84,8 +75,9 @@ def load_txt(dir, time):
 
 
 class World(object):
-    def __init__(self, args, timeout):
+    def __init__(self, args, log_names, timeout):
         self.args = args
+        self.log_names = log_names
         self.timeout = timeout
         self.carla_world, self.carla_map = self._get_data_from_carla()
 
@@ -97,8 +89,8 @@ class World(object):
         self._world_offset = (min_x, min_y)
 
         self.log = dict()
-        for ind in range(self.args.sequence_ind[0], self.args.sequence_ind[1]+1):
-            txt_dir = DATA_DIR + 'txt/' + str(ind) + '.txt'
+        for txt_dir in self.log_names:
+            ind = int(os.path.basename(txt_dir)[0:-4])
             self.log[ind] = load_txt(txt_dir, args.past_time_interval)
 
     def _get_data_from_carla(self):
@@ -284,104 +276,37 @@ class World(object):
                 img[pos[1] - 1:pos[1] + 2, pos[0] - 1:pos[0] + 2] = [255, 255, 255]
         cv2.imshow('future trajectory', img)
 
-        return traj
+        return np.array(traj)
 
 
-def data_process(args):
-    world = World(args, timeout=2.0)
-    outVideo = cv2.VideoWriter('../../data/out.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 10,
-                               (args.image_res[0], args.image_res[1]))
-
-    for ind in range(args.sequence_ind[0], args.sequence_ind[1]):
-    # for ind in range(684, args.sequence_ind[1]):
-        print(ind)
-        # ind = 4035
-
-        img_dir = DATA_DIR + 'img/' + str(ind) + '.png'
-        inputImg = cv2.imread(img_dir)
-
-        traj = world.get_future_traj(ind)
-        inputImg = world.add_past_traj(inputImg, ind)
-        stopToken, inputImg = world.generate_routing(ind, inputImg)
-
-        if not stopToken:
-            break
-        cv2.imshow("input", inputImg)
-        outVideo.write(inputImg)
-
-        # while True:
-        #     k = cv2.waitKey(1)
-        #     if k == 27:
-        #         break
-
-        cv2.waitKey(1)
-
-    outVideo.release()
-    cv2.destroyAllWindows()
-
-
-def _check_or_create_dir(directory):
-    """Check if drectory exists otherwise create it"""
-    if not tf.gfile.Exists(directory):
-        tf.gfile.MakeDirs(directory)
-
-
-def _process_dataset(image_names, log_names, output_directory):
-    """Processes and saves list of images as TFRecords."""
-
-    _check_or_create_dir(output_directory)
-
-
-    pass
-
-
-def convert_to_tf_records(raw_data_dir):
-    """ Convert the raw dataset into TF-Record dumps"""
-
-    # Glob all the training files
-    training_images = sorted(tf.gfile.Glob(
-        os.path.join(raw_data_dir, TRAINING_DIRECTORY, 'img', '*.png')))
-
-    training_logs = sorted(tf.gfile.Glob(
-        os.path.join(raw_data_dir, TRAINING_DIRECTORY, 'txt', '*.txt')))
-
-    # Create training data
-    tf.logging.info('Processing the training data.')
-    training_records = _process_dataset(training_images, training_logs)
-
-    a = 1
-
-def main():
-    # Parse arguments
-    argparser = argparse.ArgumentParser(
-        description='Data preparation')
-    argparser.add_argument(
-        '--host',
-        metavar='H',
-        default='127.0.0.1',
-        help='IP of the host server (default: 127.0.0.1)')
-    argparser.add_argument(
-        '-p', '--port',
-        metavar='P',
-        default=2000,
-        type=int,
-        help='TCP port to listen to (default: 2000)')
-    argparser.add_argument(
-        '--map',
-        metavar='TOWN',
-        default=None,
-        help='start a new episode at the given TOWN')
-
-    args = argparser.parse_args()
-    args.description = argparser.description
-
-    # args = load_parms(DATA_DIR + "parms.txt", args)
-
-    # data_process(args)
-
-    # Convert the raw data into tf-records
-    training_records, validation_records = convert_to_tf_records(DATA_DIR)
-
-
-if __name__ == '__main__':
-    main()
+# def data_process(args):
+#     world = World(args, timeout=2.0)
+#     outVideo = cv2.VideoWriter('../../data/out.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 10,
+#                                (args.image_res[0], args.image_res[1]))
+#
+#     for ind in range(args.sequence_ind[0], args.sequence_ind[1]):
+#     # for ind in range(684, args.sequence_ind[1]):
+#         print(ind)
+#         # ind = 4035
+#
+#         img_dir = DATA_DIR + 'img/' + str(ind) + '.png'
+#         inputImg = cv2.imread(img_dir)
+#
+#         traj = world.get_future_traj(ind)
+#         inputImg = world.add_past_traj(inputImg, ind)
+#         stopToken, inputImg = world.generate_routing(ind, inputImg)
+#
+#         if not stopToken:
+#             break
+#         cv2.imshow("input", inputImg)
+#         outVideo.write(inputImg)
+#
+#         # while True:
+#         #     k = cv2.waitKey(1)
+#         #     if k == 27:
+#         #         break
+#
+#         cv2.waitKey(1)
+#
+#     outVideo.release()
+#     cv2.destroyAllWindows()
