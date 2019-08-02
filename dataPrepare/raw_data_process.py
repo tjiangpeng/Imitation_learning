@@ -1,6 +1,7 @@
 import sys
 import os
 import glob
+import argparse
 
 try:
     sys.path.append(glob.glob('../../carla/dist/carla-*%d.%d-%s.egg' % (
@@ -154,7 +155,7 @@ class World(object):
             i_f = i_f + 1
             if i_f > self.args.sequence_ind[1]:
                 print("Reach the final frame!")
-                return False, img
+                return True, img
 
             pos_f = self.log[i_f]['hero_global_pos']
             pos = self.global_to_img_coordinate(pos_f, ind)
@@ -239,7 +240,7 @@ class World(object):
                 cv2.line(img, previous_point, (pos[0], pos[1]), color, 5)
                 previous_point = (pos[0], pos[1])
 
-        return True, img
+        return False, img
 
     def add_past_traj(self, hd_map, ind):
         res = self.args.image_res
@@ -279,34 +280,85 @@ class World(object):
         return np.array(traj)
 
 
-# def data_process(args):
-#     world = World(args, timeout=2.0)
-#     outVideo = cv2.VideoWriter('../../data/out.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 10,
-#                                (args.image_res[0], args.image_res[1]))
-#
-#     for ind in range(args.sequence_ind[0], args.sequence_ind[1]):
-#     # for ind in range(684, args.sequence_ind[1]):
-#         print(ind)
-#         # ind = 4035
-#
-#         img_dir = DATA_DIR + 'img/' + str(ind) + '.png'
-#         inputImg = cv2.imread(img_dir)
-#
-#         traj = world.get_future_traj(ind)
-#         inputImg = world.add_past_traj(inputImg, ind)
-#         stopToken, inputImg = world.generate_routing(ind, inputImg)
-#
-#         if not stopToken:
-#             break
-#         cv2.imshow("input", inputImg)
-#         outVideo.write(inputImg)
-#
-#         # while True:
-#         #     k = cv2.waitKey(1)
-#         #     if k == 27:
-#         #         break
-#
-#         cv2.waitKey(1)
-#
-#     outVideo.release()
-#     cv2.destroyAllWindows()
+def write_video(args):
+    # Glob all files
+    images_dir = sorted(glob.glob(
+        os.path.join(args.data_dir, args.folder, 'img', '*.png')))
+
+    logs_dir = sorted(glob.glob(
+        os.path.join(args.data_dir, args.folder, 'txt', '*.txt')))
+
+    args.sequence_ind = [int(os.path.basename(images_dir[0])[0:-4]),
+                         int(os.path.basename(images_dir[-1])[0:-4])]
+
+
+    world = World(args, logs_dir, timeout=2.0)
+    outVideo = cv2.VideoWriter(os.path.join(args.data_dir, args.folder, 'out.avi'),
+                               cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 10,
+                               (args.image_res[0], args.image_res[1]))
+
+    for img_dir in images_dir:
+        ind = int(os.path.basename(img_dir)[0:-4])
+        print(ind)
+
+        inputImg = cv2.imread(img_dir)
+
+        traj = world.get_future_traj(ind)
+        inputImg = world.add_past_traj(inputImg, ind)
+        stopToken, inputImg = world.generate_routing(ind, inputImg)
+
+        if stopToken:
+            break
+        cv2.imshow("input", inputImg)
+        outVideo.write(inputImg)
+
+        # while True:
+        #     k = cv2.waitKey(1)
+        #     if k == 27:
+        #         break
+
+        cv2.waitKey(1)
+
+    outVideo.release()
+    cv2.destroyAllWindows()
+
+def main():
+    # Parse arguments
+    argparser = argparse.ArgumentParser(
+        description='Data preparation')
+    argparser.add_argument(
+        '--host',
+        metavar='H',
+        default='127.0.0.1',
+        help='IP of the host server (default: 127.0.0.1)')
+    argparser.add_argument(
+        '-p', '--port',
+        metavar='P',
+        default=2000,
+        type=int,
+        help='TCP port to listen to (default: 2000)')
+    argparser.add_argument(
+        '--map',
+        metavar='TOWN',
+        default=None,
+        help='start a new episode at the given TOWN')
+    argparser.add_argument(
+        '--data_dir',
+        metavar='D',
+        default='../../data/',
+        help='data directory')
+    argparser.add_argument(
+        '--folder',
+        metavar='F',
+        default='train',
+        help='train or validation folder'
+    )
+    args = argparser.parse_args()
+    args.description = argparser.description
+    args = load_parms(args.data_dir + 'parms.txt', args)
+
+    write_video(args)
+
+
+if __name__ == '__main__':
+    main()

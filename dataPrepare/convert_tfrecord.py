@@ -19,8 +19,10 @@ DATA_DIR = "../../data/"
 TRAINING_DIRECTORY = 'train'
 VALIDATION_DIRECTORY = 'validation'
 
-TRAINING_SHARDS = 2048
+TRAINING_SHARDS = 4
 VALIDATION_SHARDS = 128
+
+stopToken = False
 
 # ==============================================================================
 # -- Functuion -----------------------------------------------------------------
@@ -47,14 +49,14 @@ def _bytes_feature(value):
 def _convert_to_example(filename, image_buffer, traj):
     """Build an Example proto for an example"""
 
-    colorspace = b'BGR'
-    channels = 3
-    image_format = b'png'
+    # colorspace = b'BGR'
+    # channels = 3
+    # image_format = b'png'
 
     example = tf.train.Example(features=tf.train.Features(feature={
-        'image/colorspace': _bytes_feature(colorspace),
-        'image/channels': _int64_feature(channels),
-        'image/format': _bytes_feature(image_format),
+        # 'image/colorspace': _bytes_feature(colorspace),
+        # 'image/channels': _int64_feature(channels),
+        # 'image/format': _bytes_feature(image_format),
         'image/filename': _bytes_feature(os.path.basename(filename).encode()),
         'image/encoded': _bytes_feature(image_buffer.tostring()),
         'trajectory': _bytes_feature(traj.tostring())
@@ -65,6 +67,7 @@ def _convert_to_example(filename, image_buffer, traj):
 
 def _process_image(image_name, world):
     """Generate the final input image and ground truth"""
+    global stopToken
 
     img = cv2.imread(image_name)
     ind = int(os.path.basename(image_name)[0:-4])
@@ -82,11 +85,13 @@ def _process_image(image_name, world):
 
 def _process_image_files_batch(world, output_file, image_names, log_names):
     """Processes and saves list of images as TFRecords"""
-
+    global stopToken
     writer = tf.io.TFRecordWriter(output_file)
 
     for image_name, log_name in zip(image_names, log_names):
         image_buffer, traj = _process_image(image_name, world)
+        if stopToken:
+            break
         example = _convert_to_example(image_name, image_buffer, traj)
 
         writer.write(example.SerializeToString())
@@ -96,6 +101,7 @@ def _process_image_files_batch(world, output_file, image_names, log_names):
 
 def _process_dataset(image_names, log_names, output_directory, prefix, num_shards):
     """Processes and saves list of images as TFRecords."""
+    global stopToken
     # Create carla world
     world = World(ARGS, log_names, timeout=2.0)
 
@@ -110,8 +116,9 @@ def _process_dataset(image_names, log_names, output_directory, prefix, num_shard
             output_directory, '%s-%.5d-of-%.5d' % (prefix, shard, num_shards))
 
         _process_image_files_batch(world, output_file, chunk_imgs, chunk_logs)
-
         tf.compat.v1.logging.info('Finished writing file: %s' % output_file)
+        if stopToken:
+            break
 
 
 def convert_to_tf_records(raw_data_dir):
@@ -129,11 +136,10 @@ def convert_to_tf_records(raw_data_dir):
 
     # Create training data
     tf.compat.v1.logging.info('Processing the training data.')
-    training_records = _process_dataset(
+    _process_dataset(
         training_images, training_logs,
         os.path.join(raw_data_dir, TRAINING_DIRECTORY), TRAINING_DIRECTORY, TRAINING_SHARDS)
 
-    a = 1
 
 def main():
     # Parse arguments
@@ -162,7 +168,7 @@ def main():
     ARGS = load_parms(DATA_DIR + 'parms.txt', ARGS)
 
     # Convert the raw data into tf-records
-    training_records, validation_records = convert_to_tf_records(DATA_DIR)
+    convert_to_tf_records(DATA_DIR)
 
     cv2.destroyAllWindows()
 
