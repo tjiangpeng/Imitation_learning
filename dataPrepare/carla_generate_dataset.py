@@ -152,11 +152,13 @@ PIXELS_PER_METER = 5
 MAP_DEFAULT_SCALE = 0.1
 HERO_DEFAULT_SCALE = 1
 
-PIXELS_AHEAD_VEHICLE = 150
+PIXELS_AHEAD_VEHICLE = 96 # 150
 
 ##################################################################################
 PAST_TRAJECTORY_TIME_INTERVAL = 30
-DATA_LOG_DIR = "../../data/"
+DATA_LOG_DIR = "../../data/2019_08_07/train/"
+IMG_HEIGHT = 384
+IMG_WIDTH = 384
 ##################################################################################
 
 # ==============================================================================
@@ -1178,7 +1180,7 @@ class World(object):
                        ]
             v[1].transform(corners)
             corners = [world_to_pixel(p) for p in corners]
-            pygame.draw.lines(surface, color, False, corners, int(math.ceil(4.0 * self.map_image.scale)))
+            pygame.draw.lines(surface, color, False, corners, int(math.ceil(2.0 * self.map_image.scale)))
 
             ############################################################################################################
             if v[0].attributes['role_name'] == 'hero':
@@ -1248,7 +1250,7 @@ class World(object):
 
         # Dynamic actors
         self._render_vehicles(surface, vehicles, self.map_image.world_to_pixel)
-        self._render_walkers(surface, walkers, self.map_image.world_to_pixel)
+        # self._render_walkers(surface, walkers, self.map_image.world_to_pixel)
 
     def clip_surfaces(self, clipping_rect):
         self.actors_surface.set_clip(clipping_rect)
@@ -1360,7 +1362,8 @@ class World(object):
             ###############################################################
             # Log image
             if self._input._log_enabled and len(self.hero_past_traj) == PAST_TRAJECTORY_TIME_INTERVAL:
-                pygame.image.save(display.subsurface(288, 8, 704, 704), DATA_LOG_DIR + "img/" + str(self.image_ind) + ".png")
+                pygame.image.save(display.subsurface(288+352-IMG_WIDTH/2, 8+352-IMG_HEIGHT/2, IMG_WIDTH, IMG_HEIGHT),
+                                  DATA_LOG_DIR + "img/" + "{:0>7d}.txt".format(self.image_ind) + ".png")
                 self.image_ind = self.image_ind + 1
             ###############################################################
 
@@ -1432,7 +1435,7 @@ class World(object):
         # print(int(new_x)+352)
         # print(int(new_y)+352)
 
-        f = open(DATA_LOG_DIR + "txt/" + str(ind) + ".txt", "w")
+        f = open(DATA_LOG_DIR + "txt/" + "{:0>7d}.txt".format(ind) + ".txt", "w")
         f.write("time\n" + str(t) + "\n")
         f.write("hero_global_pos\n" + str(x) + "," + str(y) + "\n")
         f.write("road_id\n" + str(road_id) + "\n")
