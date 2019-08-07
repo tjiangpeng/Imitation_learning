@@ -155,7 +155,7 @@ HERO_DEFAULT_SCALE = 1
 PIXELS_AHEAD_VEHICLE = 96 # 150
 
 ##################################################################################
-PAST_TRAJECTORY_TIME_INTERVAL = 30
+PAST_TRAJECTORY_TIME_INTERVAL = 30 + 1
 DATA_LOG_DIR = "../../data/2019_08_07/train/"
 IMG_HEIGHT = 384
 IMG_WIDTH = 384
@@ -875,6 +875,10 @@ class World(object):
         self.hero_past_traj = []
         self.actors_past_traj = {}
 
+        # Past corners
+        self.hero_past_corners = []
+        self.actors_past_corners = {}
+
         # Save image
         self.image_ind = 0
 
@@ -1145,21 +1149,21 @@ class World(object):
     #         # else:
     #             # surface.blit(font_surface, (x - radius / 2, y - radius / 2))
 
-    def _render_walkers(self, surface, list_w, world_to_pixel):
-        for w in list_w:
-            color = COLOR_PLUM_0
-
-            # Compute bounding box points
-            bb = w[0].bounding_box.extent
-            corners = [
-                carla.Location(x=-bb.x, y=-bb.y),
-                carla.Location(x=bb.x, y=-bb.y),
-                carla.Location(x=bb.x, y=bb.y),
-                carla.Location(x=-bb.x, y=bb.y)]
-
-            w[1].transform(corners)
-            corners = [world_to_pixel(p) for p in corners]
-            pygame.draw.polygon(surface, color, corners)
+    # def _render_walkers(self, surface, list_w, world_to_pixel):
+    #     for w in list_w:
+    #         color = COLOR_PLUM_0
+    #
+    #         # Compute bounding box points
+    #         bb = w[0].bounding_box.extent
+    #         corners = [
+    #             carla.Location(x=-bb.x, y=-bb.y),
+    #             carla.Location(x=bb.x, y=-bb.y),
+    #             carla.Location(x=bb.x, y=bb.y),
+    #             carla.Location(x=-bb.x, y=bb.y)]
+    #
+    #         w[1].transform(corners)
+    #         corners = [world_to_pixel(p) for p in corners]
+    #         pygame.draw.polygon(surface, color, corners)
 
     def _render_vehicles(self, surface, list_v, world_to_pixel):
 
@@ -1219,9 +1223,10 @@ class World(object):
                     #     pygame.draw.rect(surface, color, pygame.Rect((pos[0]-3, pos[1]-3), (7, 7)), 1)
 
                     self.hero_past_traj.pop(0)
-                    self.hero_past_traj.append((self.hero_actor.get_location().x, self.hero_actor.get_location().y))
-                else:
-                    self.hero_past_traj.append((self.hero_actor.get_location().x, self.hero_actor.get_location().y))
+                    self.hero_past_corners.pop(0)
+
+                self.hero_past_traj.append((v[1].location.x, v[1].location.y, v[1].rotation.yaw))
+                self.hero_past_corners.append(corners[0:5])
 
             else:
                 if v[0].id in self.actors_past_traj:
@@ -1235,11 +1240,13 @@ class World(object):
                         #     pygame.draw.circle(surface, color, pos, 2)
 
                         self.actors_past_traj[v[0].id].pop(0)
-                        self.actors_past_traj[v[0].id].append((v[1].location.x, v[1].location.y))
-                    else:
-                        self.actors_past_traj[v[0].id].append((v[1].location.x, v[1].location.y))
+                        self.actors_past_corners[v[0].id].pop(0)
+
+                    self.actors_past_traj[v[0].id].append((v[1].location.x, v[1].location.y, v[1].rotation.yaw))
+                    self.actors_past_corners[v[0].id].append(corners[0:5])
                 else:
                     self.actors_past_traj[v[0].id] = []
+                    self.actors_past_corners[v[0].id] = []
             ############################################################################################################
 
     def render_actors(self, surface, vehicles, traffic_lights, speed_limits, walkers):
@@ -1290,12 +1297,6 @@ class World(object):
         if self.scaled_size != self.prev_scaled_size:
             self._compute_scale(scale_factor)
 
-        ###############################################################
-        # Log measurement
-        if self._input._log_enabled and len(self.hero_past_traj) == PAST_TRAJECTORY_TIME_INTERVAL:
-            self.write_to_txt(self.image_ind, vehicles)
-        ###############################################################
-
         # Render Actors
 
         self.actors_surface.fill(COLOR_BLACK)
@@ -1312,7 +1313,7 @@ class World(object):
 
         # Blit surfaces
         surfaces = ((self.map_image.surface, (0, 0)),
-                    (self.actors_surface, (0, 0)),
+                    # (self.actors_surface, (0, 0)),
                     (self.vehicle_id_surface, (0, 0)),
                     )
 
@@ -1360,10 +1361,12 @@ class World(object):
             display.blit(self.border_round_surface, (0, 0))
 
             ###############################################################
-            # Log image
+            # Log image and measurement
             if self._input._log_enabled and len(self.hero_past_traj) == PAST_TRAJECTORY_TIME_INTERVAL:
                 pygame.image.save(display.subsurface(288+352-IMG_WIDTH/2, 8+352-IMG_HEIGHT/2, IMG_WIDTH, IMG_HEIGHT),
-                                  DATA_LOG_DIR + "img/" + "{:0>7d}.txt".format(self.image_ind) + ".png")
+                                  DATA_LOG_DIR + "img/" + "{:0>7d}.png".format(self.image_ind))
+                self.write_to_txt(self.image_ind, vehicles)
+
                 self.image_ind = self.image_ind + 1
             ###############################################################
 
@@ -1402,7 +1405,6 @@ class World(object):
         waypoint = self.town_map.get_waypoint(self.hero_actor.get_location())
 
         t = self.simulation_time
-
         x = self.hero_actor.get_location().x
         y = self.hero_actor.get_location().y
         road_id = waypoint.road_id
@@ -1411,6 +1413,7 @@ class World(object):
         hero_speed = self.hero_actor.get_velocity()
         hero_speed_text = 3.6 * math.sqrt(hero_speed.x ** 2 + hero_speed.y ** 2 + hero_speed.z ** 2)
 
+        # Traffic light
         state = 'None'
         if self.affected_traffic_light is not None:
             state = self.affected_traffic_light.state
@@ -1428,14 +1431,7 @@ class World(object):
             hero_location_screen[1] + hero_front.y * PIXELS_AHEAD_VEHICLE)
         angle = - self.hero_transform.rotation.yaw - 90
 
-        # new_x = - hero_front.x * PIXELS_AHEAD_VEHICLE * math.cos(angle / 180 * math.pi) \
-        #         + hero_front.y * PIXELS_AHEAD_VEHICLE * math.sin(angle / 180 * math.pi)
-        # new_y = - hero_front.x * PIXELS_AHEAD_VEHICLE * math.sin(angle / 180 * math.pi) \
-        #         - hero_front.y * PIXELS_AHEAD_VEHICLE * math.cos(angle / 180 * math.pi)
-        # print(int(new_x)+352)
-        # print(int(new_y)+352)
-
-        f = open(DATA_LOG_DIR + "txt/" + "{:0>7d}.txt".format(ind) + ".txt", "w")
+        f = open(DATA_LOG_DIR + "txt/" + "{:0>7d}.txt".format(ind), "w")
         f.write("time\n" + str(t) + "\n")
         f.write("hero_global_pos\n" + str(x) + "," + str(y) + "\n")
         f.write("road_id\n" + str(road_id) + "\n")
@@ -1452,22 +1448,37 @@ class World(object):
         f.write("hero_past_trajectory\n")
         for past_pos in self.hero_past_traj:
             pos = self.map_image.world_to_pixel(carla.Location(x=past_pos[0], y=past_pos[1]))
-            pos = self.transfer_to_img_coordinate(pos, translation_offset, angle, [704, 704])
-            f.write(str(pos[0]) + "," + str(pos[1]) + "\n")
+            pos = self.transfer_to_img_coordinate(pos, translation_offset, angle, [IMG_WIDTH, IMG_HEIGHT])
+            # (x, y, orientation)
+            f.write(str(pos[0]) + "," + str(pos[1]) + "," + str(past_pos[2]) + "\n")
+        f.write("hero_past_corners\n")
+        for past_corners in self.hero_past_corners:
+            for pos in past_corners:
+                pos = self.transfer_to_img_coordinate(pos, translation_offset, angle, [IMG_WIDTH, IMG_HEIGHT])
+                f.write(str(pos[0]) + "," + str(pos[1]) + ",")
+            f.write("\n")
 
-        f.write("actor_past_trajectory\n")
+        f.write("actor_past_trajectory_corners\n")
         for v in list_v:
             if not v[0].attributes['role_name'] == 'hero':
                 pos = self.map_image.world_to_pixel(carla.Location(x=v[1].location.x, y=v[1].location.y))
-                pos = self.transfer_to_img_coordinate(pos, translation_offset, angle, [704, 704])
-                if pos[0] < -50 or pos[0] > 754 or pos[1] < -50 or pos[1] > 754:
+                pos = self.transfer_to_img_coordinate(pos, translation_offset, angle, [IMG_WIDTH, IMG_HEIGHT])
+                if pos[0] < -50 or pos[0] > (IMG_WIDTH + 50) or pos[1] < -50 or pos[1] > (IMG_HEIGHT + 50):
                     continue
+                # find the actors within the view boundary
                 else:
-                    f.write(str(v[0].id) + "\n")
+                    f.write("Vehicle ID:" + str(v[0].id) + "\n")
                     for past_pos in self.actors_past_traj[v[0].id]:
                         pos = self.map_image.world_to_pixel(carla.Location(x=past_pos[0], y=past_pos[1]))
-                        pos = self.transfer_to_img_coordinate(pos, translation_offset, angle, [704, 704])
-                        f.write(str(pos[0]) + "," + str(pos[1]) + "\n")
+                        pos = self.transfer_to_img_coordinate(pos, translation_offset, angle, [IMG_WIDTH, IMG_HEIGHT])
+                        f.write(str(pos[0]) + "," + str(pos[1]) + "," + str(past_pos[2]) + "\n")
+
+                    for past_corners in self.actors_past_corners[v[0].id]:
+                        for pos in past_corners:
+                            pos = self.transfer_to_img_coordinate(pos, translation_offset, angle,
+                                                                  [IMG_WIDTH, IMG_HEIGHT])
+                            f.write(str(pos[0]) + "," + str(pos[1]) + ",")
+                        f.write("\n")
         f.close()
 
 

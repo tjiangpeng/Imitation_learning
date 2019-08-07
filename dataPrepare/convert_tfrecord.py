@@ -13,7 +13,7 @@ from dataPrepare.raw_data_process import World, load_parms
 # -- Constants -----------------------------------------------------------------
 # ==============================================================================
 
-DATA_DIR = "../../data/"
+DATA_DIR = "../../data/2019_08_07/"
 # DATA_DIR = "sample/"
 
 TRAINING_DIRECTORY = 'train'
@@ -30,7 +30,7 @@ stopToken = False
 
 def _check_or_create_dir(directory):
     """Check if drectory exists otherwise create it"""
-    if not tf.io.gfile.exists(directory):
+    if not tf.gfile.Exists(directory):
         tf.gfile.MakeDirs(directory)
 
 
@@ -116,7 +116,7 @@ def _process_dataset(image_names, log_names, output_directory, prefix, num_shard
             output_directory, '%s-%.5d-of-%.5d' % (prefix, shard, num_shards))
 
         _process_image_files_batch(world, output_file, chunk_imgs, chunk_logs)
-        tf.compat.v1.logging.info('Finished writing file: %s' % output_file)
+        tf.logging.info('Finished writing file: %s' % output_file)
         if stopToken:
             break
 
@@ -125,17 +125,17 @@ def convert_to_tf_records(raw_data_dir):
     """ Convert the raw dataset into TF-Record dumps"""
 
     # Glob all the training files
-    training_images = sorted(tf.io.gfile.glob(
+    training_images = sorted(tf.gfile.Glob(
         os.path.join(raw_data_dir, TRAINING_DIRECTORY, 'img', '*.png')))
 
-    training_logs = sorted(tf.io.gfile.glob(
+    training_logs = sorted(tf.gfile.Glob(
         os.path.join(raw_data_dir, TRAINING_DIRECTORY, 'txt', '*.txt')))
 
     ARGS.sequence_ind = [int(os.path.basename(training_images[0])[0:-4]),
                          int(os.path.basename(training_images[-1])[0:-4])]
 
     # Create training data
-    tf.compat.v1.logging.info('Processing the training data.')
+    tf.logging.info('Processing the training data.')
     _process_dataset(
         training_images, training_logs,
         os.path.join(raw_data_dir, TRAINING_DIRECTORY), TRAINING_DIRECTORY, TRAINING_SHARDS)

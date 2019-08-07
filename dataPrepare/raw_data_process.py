@@ -20,12 +20,13 @@ import cv2
 import logging
 import math
 import numpy as np
+import matplotlib.pyplot as plt
 
 # ==============================================================================
 # -- Constants -----------------------------------------------------------------
 # ==============================================================================
 
-TIME_PAST = 10
+TIME_PAST = 10+1
 TIME_FUTURE = 10
 
 # ==============================================================================
@@ -61,16 +62,33 @@ def load_txt(dir, time):
     data['angle'] = float(fl[17])
 
     data['hero_past_traj'] = []
+    data['hero_past_orientation'] = []
     for pos in fl[(19+time-TIME_PAST):(19+time)]:
-        data['hero_past_traj'].append([int(i) for i in pos.split(",")])
+        data['hero_past_traj'].append([int(i) for i in pos.split(",")[0:2]])
+        data['hero_past_orientation'].append(float(pos.split(",")[2]))
+
+    data['hero_past_corners'] = []
+    for corners in fl[(20+time+time-TIME_PAST):(20+time+time)]:
+        data['hero_past_corners'].append([int(i) for i in corners.split(",")[0:-1]])
 
     data['actor_past_traj'] = []
-    num = int((len(fl) - 20 - time) / (time+1))
+    data['actor_past_orientation'] = []
+    data['actor_past_corners'] = []
+    num = int((len(fl) - 21 - time - time) / (time+time+1))
     for ii in range(num):
         past_pos = []
-        for pos in fl[(21+time+time-TIME_PAST+ii*(time+1)):(21+time+time+ii*(time+1))]:
-            past_pos.append([int(i) for i in pos.split(",")])
+        past_orientation = []
+        for pos in fl[(22+3*time-TIME_PAST+ii*(2*time+1)):(22+3*time+ii*(2*time+1))]:
+            past_pos.append([int(i) for i in pos.split(",")[0:2]])
+            past_orientation.append(float(pos.split(",")[2]))
+
+        past_corners = []
+        for corners in fl[22+4*time-TIME_PAST+ii*(2*time+1):(22+4*time+ii*(2*time+1))]:
+            past_corners.append([int(i) for i in corners.split(",")[0:-1]])
+
         data['actor_past_traj'].append(past_pos)
+        data['actor_past_orientation'].append(past_orientation)
+        data['actor_past_corners'].append(past_corners)
 
     return data
 
@@ -206,7 +224,8 @@ class World(object):
 
         # c. extract the waypoint as routing
         previous_flag = True
-        previous_point = (352, 460)
+        init_h = self.args.image_res[1]//2 + self.args.pixels_ahead_hero - 20
+        previous_point = (self.args.image_res[0]//2, init_h)
         for dist in range(6, 200):
             dist = dist * 0.5
             wp_next_list = waypoint.next(dist)
@@ -230,9 +249,9 @@ class World(object):
             pos = self.global_to_img_coordinate(pos, ind)
 
             # Remove some previous points
-            if pos[1] <= 460 and previous_flag:
+            if pos[1] <= init_h and previous_flag:
                 previous_flag = False
-            if pos[1] > 460 and previous_flag:
+            if pos[1] > init_h and previous_flag:
                 continue
 
             if pos[0] >= 0-8 and pos[0] < res[0]+8 and pos[1] >= 0-8 and pos[1] < res[1]+8:
@@ -242,28 +261,61 @@ class World(object):
 
         return False, img
 
-    def add_past_traj(self, hd_map, ind):
+    def add_past_traj(self, hd_map, ind, size):
         res = self.args.image_res
 
-        decrease = int(255 / (TIME_PAST + 1)) - 1
+        decrease = int(255 / TIME_PAST) - 1
         color = [255 - decrease, 255 - decrease, 255]
-        for past_pos in self.log[ind]['hero_past_traj']:
+        for past_pos in self.log[ind]['hero_past_traj'][0:-1]:
             if past_pos[0] >= 0 and past_pos[0] < res[0] and past_pos[1] >= 0 and past_pos[1] < res[1]:
-                hd_map[past_pos[1] - 2:past_pos[1] + 3, past_pos[0] - 2:past_pos[0] + 3] = color
+                hd_map[past_pos[1] - size:past_pos[1] + size+1, past_pos[0] - size:past_pos[0] + size+1] = color
                 # hd_map[past_pos[1], past_pos[0]] = [255, 255, 255]
             color[0] = color[0] - decrease
             color[1] = color[1] - decrease
+        past_pos = self.log[ind]['hero_past_traj'][-1]
+        hd_map[past_pos[1] - size:past_pos[1] + size + 1, past_pos[0] - size:past_pos[0] + size + 1] = (0, 0, 255)
 
         for vehicle_pos in self.log[ind]['actor_past_traj']:
             color = [255, 255 - decrease, 255 - decrease]
-            for past_pos in vehicle_pos:
+            for past_pos in vehicle_pos[0:-1]:
                 if past_pos[0] >= 0 and past_pos[0] < res[0] and past_pos[1] >= 0 and past_pos[1] < res[1]:
-                    hd_map[past_pos[1] - 2:past_pos[1] + 3, past_pos[0] - 2:past_pos[0] + 3] = color
+                    hd_map[past_pos[1] - size:past_pos[1] + size+1, past_pos[0] - size:past_pos[0] + size+1] = color
                     # hd_map[past_pos[1], past_pos[0]] = [255, 255, 255]
                 color[1] = color[1] - decrease
                 color[2] = color[2] - decrease
+            past_pos = vehicle_pos[-1]
+            hd_map[past_pos[1] - size:past_pos[1] + size + 1, past_pos[0] - size:past_pos[0] + size + 1] = (255, 0, 0)
 
         return hd_map
+
+    def add_past_corners(self, img, ind):
+        res = self.args.image_res
+
+        decrease = int(255 / TIME_PAST) - 1
+        color = [255 - decrease, 255 - decrease, 255]
+        for past_corners in self.log[ind]['hero_past_corners'][0:-1]:
+            area = np.array(past_corners, dtype=np.int32).reshape(5, 2)
+            cv2.fillPoly(img, [area], color)
+
+            color[0] = color[0] - decrease
+            color[1] = color[1] - decrease
+
+        area = np.array(self.log[ind]['hero_past_corners'][-1], dtype=np.int32).reshape(5, 2)
+        cv2.fillPoly(img, [area], (0, 0, 255))
+
+        for actor_corners in self.log[ind]['actor_past_corners']:
+            color = [255, 255 - decrease, 255 - decrease]
+            for past_corners in actor_corners[0:-1]:
+                area = np.array(past_corners, dtype=np.int32).reshape(5, 2)
+                cv2.fillPoly(img, [area], color)
+
+                color[1] = color[1] - decrease
+                color[2] = color[2] - decrease
+
+            area = np.array(actor_corners[-1], dtype=np.int32).reshape(5, 2)
+            cv2.fillPoly(img, [area], (255, 0, 0))
+
+        return img
 
     def get_future_traj(self, ind):
         res = self.args.image_res
@@ -304,7 +356,8 @@ def write_video(args):
         inputImg = cv2.imread(img_dir)
 
         traj = world.get_future_traj(ind)
-        inputImg = world.add_past_traj(inputImg, ind)
+        # inputImg = world.add_past_traj(inputImg, ind, 1)
+        inputImg = world.add_past_corners(inputImg, ind)
         stopToken, inputImg = world.generate_routing(ind, inputImg)
 
         if stopToken:
@@ -345,7 +398,7 @@ def main():
     argparser.add_argument(
         '--data_dir',
         metavar='D',
-        default='../../data/',
+        default='../../data/2019_08_07/',
         help='data directory')
     argparser.add_argument(
         '--folder',
