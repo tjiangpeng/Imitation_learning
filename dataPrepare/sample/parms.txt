@@ -1,10 +1,8 @@
 Pixels_per_meter
-16
+5
 Pixels_ahead_hero
-150
+96
 Past_trajectory_time_interval
-30
+31
 Image_res
-704, 704
-data_sequence_ind
-0,14238
+384, 384

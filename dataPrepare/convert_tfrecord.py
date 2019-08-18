@@ -1,5 +1,6 @@
 import os
 import math
+from random import shuffle
 # ==============================================================================
 # -- Imports -------------------------------------------------------------------
 # ==============================================================================
@@ -16,11 +17,12 @@ from dataPrepare.raw_data_process import World, load_parms
 DATA_DIR = "../../data/2019_08_07/"
 # DATA_DIR = "sample/"
 
+IS_TRAINING = False
 TRAINING_DIRECTORY = 'train'
 VALIDATION_DIRECTORY = 'validation'
 
 TRAINING_SHARDS = 4
-VALIDATION_SHARDS = 128
+VALIDATION_SHARDS = 1
 
 stopToken = False
 
@@ -49,6 +51,9 @@ def _bytes_feature(value):
 def _convert_to_example(filename, image_buffer, traj):
     """Build an Example proto for an example"""
 
+    cv2.imwrite('test.png', image_buffer)
+    img_bytes = open('test.png', 'rb').read()
+
     # colorspace = b'BGR'
     # channels = 3
     # image_format = b'png'
@@ -57,8 +62,8 @@ def _convert_to_example(filename, image_buffer, traj):
         # 'image/colorspace': _bytes_feature(colorspace),
         # 'image/channels': _int64_feature(channels),
         # 'image/format': _bytes_feature(image_format),
-        'image/filename': _bytes_feature(os.path.basename(filename).encode()),
-        'image/encoded': _bytes_feature(image_buffer.tostring()),
+        # 'image/filename': _bytes_feature(os.path.basename(filename).encode()),
+        'image/encoded': _bytes_feature(img_bytes),
         'trajectory': _bytes_feature(traj.tostring())
     }))
 
@@ -73,8 +78,9 @@ def _process_image(image_name, world):
     ind = int(os.path.basename(image_name)[0:-4])
 
     traj = world.get_future_traj(ind)
-    img = world.add_past_traj(img, ind)
+    # img = world.add_past_traj(img, ind, 1)
     stopToken, img = world.generate_routing(ind, img)
+    img = world.add_past_corners(img, ind)
 
     cv2.imshow("input image", img)
 
@@ -83,12 +89,17 @@ def _process_image(image_name, world):
     return img, traj
 
 
-def _process_image_files_batch(world, output_file, image_names, log_names):
+def _process_image_files_batch(world, output_file, image_names):
     """Processes and saves list of images as TFRecords"""
-    global stopToken
+    global stopToken, ARGS
     writer = tf.io.TFRecordWriter(output_file)
 
-    for image_name, log_name in zip(image_names, log_names):
+    for image_name in image_names:
+        ind = int(os.path.basename(image_name)[0:-4])
+        if ind in ARGS.outliers:
+            print("frame " + str(ind) + " is removed!")
+            continue
+
         image_buffer, traj = _process_image(image_name, world)
         if stopToken:
             break
@@ -111,34 +122,59 @@ def _process_dataset(image_names, log_names, output_directory, prefix, num_shard
 
     for shard in range(num_shards):
         chunk_imgs = image_names[shard * chunksize : (shard + 1) * chunksize]
-        chunk_logs = log_names[shard * chunksize : (shard + 1) * chunksize]
         output_file = os.path.join(
             output_directory, '%s-%.5d-of-%.5d' % (prefix, shard, num_shards))
 
-        _process_image_files_batch(world, output_file, chunk_imgs, chunk_logs)
+        _process_image_files_batch(world, output_file, chunk_imgs)
         tf.logging.info('Finished writing file: %s' % output_file)
         if stopToken:
             break
 
 
-def convert_to_tf_records(raw_data_dir):
+def load_outlier_ind(dir):
+    outliers = []
+    try:
+        f = open(dir, "r")
+        fl = f.readlines()
+        for line in fl:
+            start = int(line.split(",")[0])
+            end = int(line.split(",")[1])
+            outliers = outliers + [i for i in range(start, end+1)]
+    except IOError:
+        print("the outlier file doesn't exist, which means no outlier!")
+
+    return outliers
+
+
+def convert_to_tf_records(is_training=True, raw_data_dir=None):
     """ Convert the raw dataset into TF-Record dumps"""
+    global ARGS
+    if is_training:
+        directory = TRAINING_DIRECTORY
+        shards = TRAINING_SHARDS
+    else:
+        directory = VALIDATION_DIRECTORY
+        shards = VALIDATION_SHARDS
 
-    # Glob all the training files
-    training_images = sorted(tf.gfile.Glob(
-        os.path.join(raw_data_dir, TRAINING_DIRECTORY, 'img', '*.png')))
+    ARGS.outliers = load_outlier_ind(os.path.join(raw_data_dir, directory, "outliers.txt"))
 
-    training_logs = sorted(tf.gfile.Glob(
-        os.path.join(raw_data_dir, TRAINING_DIRECTORY, 'txt', '*.txt')))
+    # Glob all the files
+    images = sorted(tf.gfile.Glob(
+        os.path.join(raw_data_dir, directory, 'img', '*.png')))
 
-    ARGS.sequence_ind = [int(os.path.basename(training_images[0])[0:-4]),
-                         int(os.path.basename(training_images[-1])[0:-4])]
+    logs = sorted(tf.gfile.Glob(
+        os.path.join(raw_data_dir, directory, 'txt', '*.txt')))
 
+    ARGS.sequence_ind = [int(os.path.basename(images[0])[0:-4]),
+                         int(os.path.basename(images[-1])[0:-4])]
+
+    if is_training:
+        shuffle(images)
     # Create training data
-    tf.logging.info('Processing the training data.')
+    tf.logging.info('Processing the data.')
     _process_dataset(
-        training_images, training_logs,
-        os.path.join(raw_data_dir, TRAINING_DIRECTORY), TRAINING_DIRECTORY, TRAINING_SHARDS)
+        images, logs,
+        os.path.join(raw_data_dir, directory), directory, shards)
 
 
 def main():
@@ -168,7 +204,7 @@ def main():
     ARGS = load_parms(DATA_DIR + 'parms.txt', ARGS)
 
     # Convert the raw data into tf-records
-    convert_to_tf_records(DATA_DIR)
+    convert_to_tf_records(is_training=IS_TRAINING, raw_data_dir=DATA_DIR)
 
     cv2.destroyAllWindows()
 

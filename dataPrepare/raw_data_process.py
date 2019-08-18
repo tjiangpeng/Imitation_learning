@@ -27,7 +27,7 @@ import matplotlib.pyplot as plt
 # ==============================================================================
 
 TIME_PAST = 10+1
-TIME_FUTURE = 10
+TIME_FUTURE = 20
 
 # ==============================================================================
 # -- Functuion -----------------------------------------------------------------
@@ -108,6 +108,7 @@ class World(object):
         self._world_offset = (min_x, min_y)
 
         self.log = dict()
+        print("Loading txt files...")
         for txt_dir in self.log_names:
             ind = int(os.path.basename(txt_dir)[0:-4])
             self.log[ind] = load_txt(txt_dir, args.past_time_interval)
@@ -169,7 +170,8 @@ class World(object):
         is_outside = False
         i_f = ind
         continue_frame = 0
-        while continue_frame < 2:
+        road_id = 0
+        while continue_frame < 3:
             i_f = i_f + 1
             if i_f > self.args.sequence_ind[1]:
                 print("Reach the final frame!")
@@ -184,6 +186,14 @@ class World(object):
 
             if is_outside and is_junction == 'False':
                 continue_frame = continue_frame + 1
+            else:
+                continue_frame = 0
+
+            # if self.log[i_f]['road_id'] == road_id and is_outside:
+            #     continue_frame += 1
+            #     road_id = self.log[i_f]['road_id']
+            # else:
+            #     continue_frame = 0
 
         road_id_f = self.log[i_f]['road_id']
 
@@ -213,7 +223,8 @@ class World(object):
         if self.log[ind]['traffic_light'] == 'Red':
             color = [255, 0, 255]
         elif self.log[ind]['traffic_light'] == 'Yellow':
-            color = [0, 255, 255]
+            # color = [0, 255, 255]
+            color = [255, 0, 255]
         else:
             if self.log[ind]['speed_limit'] == 30:
                 color = [0, 255, 0]
@@ -256,7 +267,7 @@ class World(object):
 
             if pos[0] >= 0-8 and pos[0] < res[0]+8 and pos[1] >= 0-8 and pos[1] < res[1]+8:
                 # img[pos[1]-2:pos[1]+3, pos[0]-2:pos[0]+3] = color
-                cv2.line(img, previous_point, (pos[0], pos[1]), color, 5)
+                cv2.line(img, previous_point, (pos[0], pos[1]), color, 8)
                 previous_point = (pos[0], pos[1])
 
         return False, img
@@ -317,16 +328,18 @@ class World(object):
 
         return img
 
-    def get_future_traj(self, ind):
+    def get_future_traj(self, ind, img=None):
         res = self.args.image_res
         traj = []
-        img = np.zeros((self.args.image_res[0], self.args.image_res[1], 3), np.uint8)
+        if img is None:
+            img = np.zeros((self.args.image_res[0], self.args.image_res[1], 3), np.uint8)
+
         for i in range(ind+1, ind+TIME_FUTURE+1):
             pos = self.log[i]['hero_global_pos']
             pos = self.global_to_img_coordinate(pos, ind)
             if pos[0] >= 0 and pos[0] < res[0] and pos[1] >= 0 and pos[1] < res[1]:
                 traj.append(pos)
-                img[pos[1] - 1:pos[1] + 2, pos[0] - 1:pos[0] + 2] = [255, 255, 255]
+                img[pos[1] - 0:pos[1] + 1, pos[0] - 0:pos[0] + 1] = [255, 255, 255]
         cv2.imshow('future trajectory', img)
 
         return np.array(traj)
@@ -343,7 +356,6 @@ def write_video(args):
     args.sequence_ind = [int(os.path.basename(images_dir[0])[0:-4]),
                          int(os.path.basename(images_dir[-1])[0:-4])]
 
-
     world = World(args, logs_dir, timeout=2.0)
     outVideo = cv2.VideoWriter(os.path.join(args.data_dir, args.folder, 'out.avi'),
                                cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 10,
@@ -355,25 +367,106 @@ def write_video(args):
 
         inputImg = cv2.imread(img_dir)
 
-        traj = world.get_future_traj(ind)
         # inputImg = world.add_past_traj(inputImg, ind, 1)
-        inputImg = world.add_past_corners(inputImg, ind)
         stopToken, inputImg = world.generate_routing(ind, inputImg)
+        inputImg = world.add_past_corners(inputImg, ind)
 
         if stopToken:
             break
+        # cv2.putText(inputImg, "frame: {0}".format(ind), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
         cv2.imshow("input", inputImg)
         outVideo.write(inputImg)
 
-        # while True:
-        #     k = cv2.waitKey(1)
-        #     if k == 27:
-        #         break
+        traj = world.get_future_traj(ind)
 
         cv2.waitKey(1)
 
     outVideo.release()
     cv2.destroyAllWindows()
+
+
+def evaluate_dataset(args):
+    # Glob all files
+    images_dir = sorted(glob.glob(
+        os.path.join(args.data_dir, args.folder, 'img', '*.png')))
+
+    logs_dir = sorted(glob.glob(
+        os.path.join(args.data_dir, args.folder, 'txt', '*.txt')))
+
+    args.sequence_ind = [int(os.path.basename(images_dir[0])[0:-4]),
+                         int(os.path.basename(images_dir[-1])[0:-4])]
+
+    world = World(args, logs_dir, timeout=2.0)
+
+    num_speed_limit = [0, 0, 0]
+    num_traffic_light = [0, 0, 0, 0]
+    num_straight_bend = [0, 0]
+    num_obstacle = [0, 0]
+    for img_dir in images_dir:
+        ind = int(os.path.basename(img_dir)[0:-4])
+        print(ind)
+
+        inputImg = cv2.imread(img_dir)
+        inputImg = world.add_past_corners(inputImg, ind)
+        stopToken, inputImg = world.generate_routing(ind, inputImg)
+        if stopToken:
+            break
+        cv2.imshow("input", inputImg)
+
+        traj = world.get_future_traj(ind)
+        cv2.waitKey(1)
+        ########################################################################
+        vari_rowInd = traj[:, 0].var()
+        # print(vari_rowInd)
+        if vari_rowInd >= 2:#or world.log[ind]['is_junction'] == 'True':
+            num_straight_bend[1] += 1
+        else:
+            num_straight_bend[0] += 1
+
+        # print(world.log[ind]['speed'])
+
+        if world.log[ind]['speed_limit'] == 30:
+            num_speed_limit[0] += 1
+        elif world.log[ind]['speed_limit'] == 60:
+            num_speed_limit[1] += 1
+        elif world.log[ind]['speed_limit'] == 90:
+            num_speed_limit[2] += 1
+        else:
+            print("Speed limit is " + str(world.log[ind]['speed_limit']) + ", should be 30, 60 or 90!")
+
+        if world.log[ind]['traffic_light'] == 'Red':
+            num_traffic_light[0] += 1
+        elif world.log[ind]['traffic_light'] == 'Yellow':
+            num_traffic_light[1] += 1
+        elif world.log[ind]['traffic_light'] == 'Green':
+            num_traffic_light[2] += 1
+        elif world.log[ind]['traffic_light'] == 'None':
+            num_traffic_light[3] += 1
+        else:
+            print("Traffic light state should be red, yellow or green!")
+
+        if (not world.log[ind]['traffic_light'] == 'Red') and world.log[ind]['speed'] < (world.log[ind]['speed_limit'] - 15):
+            num_obstacle[1] += 1
+        else:
+            num_obstacle[0] += 1
+
+        ########################################################################
+        while True:
+            k = cv2.waitKey(1)
+            if k == 27:
+                break
+
+    print("Dataset evaluation result(number of frames):")
+    print("straight road: {0}".format(num_straight_bend[0]))
+    print("bend road: {0}".format(num_straight_bend[1]))
+    print("speed limit 30: {0}".format(num_speed_limit[0]))
+    print("speed limit 60: {0}".format(num_speed_limit[1]))
+    print("speed limit 90: {0}".format(num_speed_limit[2]))
+    print("traffic light red: {0}".format(num_traffic_light[0]))
+    print("traffic light yellow: {0}".format(num_traffic_light[1]))
+    print("traffic light green: {0}".format(num_traffic_light[2]))
+    print("traffic light none: {0}".format(num_traffic_light[3]))
+    print("speed down due to front vehicles: {0}".format(num_obstacle[1]))
 
 def main():
     # Parse arguments
@@ -410,8 +503,8 @@ def main():
     args.description = argparser.description
     args = load_parms(args.data_dir + 'parms.txt', args)
 
-    write_video(args)
-
+    # write_video(args)
+    evaluate_dataset(args)
 
 if __name__ == '__main__':
     main()
