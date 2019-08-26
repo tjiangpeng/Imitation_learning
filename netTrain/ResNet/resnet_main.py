@@ -1,79 +1,12 @@
-from tensorflow import keras
-# from keras.layers import Dense, Conv2D, BatchNormalization, Activation
-# from keras.layers import AveragePooling2D, Input, Flatten
-# from keras.optimizers import Adam
-# from keras.callbacks import ModelCheckpoint, LearningRateScheduler
-# from keras.callbacks import ReduceLROnPlateau
-# from keras.preprocessing.image import ImageDataGenerator
-# from keras.regularizers import l2
-# from keras import backend as K
-# from keras.models import Model
-# from keras.datasets import cifar10
+from datetime import datetime
+import json
 import numpy as np
-import os
+from tensorflow import keras
+from netTrain.ResNet.net_model import ResNet50V2
+from utils.load_tfrecord import input_fn
+from hparms import *
 
-# Training parameters
-batch_size = 32  # orig paper trained all networks with batch_size=128
-epochs = 200
-# data_augmentation = True
-num_classes = 10
-
-# Subtracting pixel mean improves accuracy
-subtract_pixel_mean = True
-
-# Model parameter
-# ----------------------------------------------------------------------------
-#           |      | 200-epoch | Orig Paper| 200-epoch | Orig Paper| sec/epoch
-# Model     |  n   | ResNet v1 | ResNet v1 | ResNet v2 | ResNet v2 | GTX1080Ti
-#           |v1(v2)| %Accuracy | %Accuracy | %Accuracy | %Accuracy | v1 (v2)
-# ----------------------------------------------------------------------------
-# ResNet20  | 3 (2)| 92.16     | 91.25     | -----     | -----     | 35 (---)
-# ResNet32  | 5(NA)| 92.46     | 92.49     | NA        | NA        | 50 ( NA)
-# ResNet44  | 7(NA)| 92.50     | 92.83     | NA        | NA        | 70 ( NA)
-# ResNet56  | 9 (6)| 92.71     | 93.03     | 93.01     | NA        | 90 (100)
-# ResNet110 |18(12)| 92.65     | 93.39+-.16| 93.15     | 93.63     | 165(180)
-# ResNet164 |27(18)| -----     | 94.07     | -----     | 94.54     | ---(---)
-# ResNet1001| (111)| -----     | 92.39     | -----     | 95.08+-.14| ---(---)
-# ---------------------------------------------------------------------------
-n = 3
-
-# Model version
-# Orig paper: version = 1 (ResNet v1), Improved ResNet: version = 2 (ResNet v2)
-version = 1
-
-# Computed depth from supplied model parameter n
-if version == 1:
-    depth = n * 6 + 2
-elif version == 2:
-    depth = n * 9 + 2
-
-# Model name, depth and version
-model_type = 'ResNet%dv%d' % (depth, version)
-
-# Load the CIFAR10 data.
-# (x_train, y_train), (x_test, y_test) = cifar10.load_data()
-
-# Input image dimensions.
-# input_shape = x_train.shape[1:]
-
-# Normalize data.
-# x_train = x_train.astype('float32') / 255
-# x_test = x_test.astype('float32') / 255
-
-# If subtract pixel mean is enabled
-# if subtract_pixel_mean:
-#     x_train_mean = np.mean(x_train, axis=0)
-#     x_train -= x_train_mean
-#     x_test -= x_train_mean
-
-# print('x_train shape:', x_train.shape)
-# print(x_train.shape[0], 'train samples')
-# print(x_test.shape[0], 'test samples')
-# print('y_train shape:', y_train.shape)
-
-# Convert class vectors to binary class matrices.
-# y_train = keras.utils.to_categorical(y_train, num_classes)
-# y_test = keras.utils.to_categorical(y_test, num_classes)
+NUM_EPOCHS = 60
 
 
 def lr_schedule(epoch):
@@ -89,66 +22,60 @@ def lr_schedule(epoch):
         lr (float32): learning rate
     """
     lr = 1e-3
-    if epoch > 180:
+    if epoch > 40:
         lr *= 0.5e-3
-    elif epoch > 160:
+    elif epoch > 30:
         lr *= 1e-3
-    elif epoch > 120:
+    elif epoch > 20:
         lr *= 1e-2
-    elif epoch > 80:
+    elif epoch > 10:
         lr *= 1e-1
     print('Learning rate: ', lr)
     return lr
 
 
+def main():
+    keras.backend.clear_session()
+    logtime = datetime.now().strftime("%Y%m%d-%H%M%S")
+    logdir = "../../../logs/ResNet/scalars/" + logtime
+
+    # Tensorboard
+    tensorboard_callback = keras.callbacks.TensorBoard(log_dir=logdir)
+    # Save model weight
+    checkpoint_callback = keras.callbacks.ModelCheckpoint("../../../logs/ResNet/checkpoints/" + logtime + "weights{epoch:03d}.h5",
+                                                          monitor='val_loss', save_best_only=True, mode='min',
+                                                          save_weights_only=True)
+
+    lr_scheduler = keras.callbacks.LearningRateScheduler(lr_schedule)
+    lr_reducer = keras.callbacks.ReduceLROnPlateau(monitor='mean_absolute_error', factor=np.sqrt(0.1), cooldown=0,
+                                                   patience=5, min_lr=0.5e-6)
+
+    callbacks = [tensorboard_callback, checkpoint_callback, lr_reducer, lr_scheduler]
+
+    ####################################################################################################################
+    # Dataset
+    data_dir = ['../../../data/2019_08_07/', '../../../data/2019_08_10/',
+                '../../../data/2019_08_12/', '../../../data/2019_08_12_2/']
+    train_dataset = input_fn(is_training=True, data_dir=data_dir, batch_size=16, num_epochs=NUM_EPOCHS)
+
+    data_dir = ['../../../data/2019_08_07/']#, '../../../data/2019_08_14/']
+    valid_dataset = input_fn(is_training=False, data_dir=data_dir, batch_size=16, num_epochs=NUM_EPOCHS)
+    ####################################################################################################################
+    # Model
+    model = ResNet50V2(include_top=True, weights=None, input_shape=(IMAGE_WIDTH, IMAGE_HEIGHT, NUM_CHANNELS),
+                       classes=NUM_TIME_SEQUENCE*2)
+
+    model.compile(optimizer=keras.optimizers.Adam(lr=lr_schedule(0)),
+                  loss='mse',
+                  metrics=['mae'])
+
+    history = model.fit(train_dataset, epochs=NUM_EPOCHS, steps_per_epoch=3000, verbose=2, callbacks=callbacks,
+                        validation_data=valid_dataset, validation_steps=315)  # 630
+
+    with open(logdir + '/trainHistory.json', 'w') as f:
+        history.history['lr'] = [float(i) for i in (history.history['lr'])]
+        json.dump(history.history, f)
 
 
-
-if version == 2:
-    model = resnet_v2(input_shape=input_shape, depth=depth)
-else:
-    model = resnet_v1(input_shape=input_shape, depth=depth)
-
-model.compile(loss='categorical_crossentropy',
-              optimizer=Adam(lr=lr_schedule(0)),
-              metrics=['accuracy'])
-model.summary()
-print(model_type)
-
-# Prepare model model saving directory.
-save_dir = os.path.join(os.getcwd(), 'saved_models')
-model_name = 'cifar10_%s_model.{epoch:03d}.h5' % model_type
-if not os.path.isdir(save_dir):
-    os.makedirs(save_dir)
-filepath = os.path.join(save_dir, model_name)
-
-# Prepare callbacks for model saving and for learning rate adjustment.
-checkpoint = ModelCheckpoint(filepath=filepath,
-                             monitor='val_acc',
-                             verbose=1,
-                             save_best_only=True)
-
-lr_scheduler = LearningRateScheduler(lr_schedule)
-
-lr_reducer = ReduceLROnPlateau(factor=np.sqrt(0.1),
-                               cooldown=0,
-                               patience=5,
-                               min_lr=0.5e-6)
-
-callbacks = [checkpoint, lr_reducer, lr_scheduler]
-
-# Run training, with or without data augmentation.
-if not data_augmentation:
-    print('Not using data augmentation.')
-    model.fit(x_train, y_train,
-              batch_size=batch_size,
-              epochs=epochs,
-              validation_data=(x_test, y_test),
-              shuffle=True,
-              callbacks=callbacks)
-
-
-# Score trained model.
-scores = model.evaluate(x_test, y_test, verbose=1)
-print('Test loss:', scores[0])
-print('Test accuracy:', scores[1])
+if __name__ == '__main__':
+    main()
