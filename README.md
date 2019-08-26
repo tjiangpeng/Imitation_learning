@@ -23,6 +23,9 @@ TODO:
 
 ![equation](https://latex.codecogs.com/svg.latex?P(Y|M,S,E,R)&space;=&space;\sum{\phi_i&space;\mathcal{N}(\mu_i,&space;\sigma_i^2)})
 
+```math
+y^2 = x^2 \sum{\sigma}
+```
   
   Loss is to minimize the negative log-likelihood of the ground truth future locations under the predicted trajectory according to a GMM with parameters 
 
