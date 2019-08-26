@@ -21,7 +21,7 @@ TODO:
 
 - [ ] Input images --> CNN --> Parametric probability distribution (Mixed Gaussian Model) $\sigma$
 
-<div align=center>![equation](https://latex.codecogs.com/svg.latex?P(Y|M,S,E,R)&space;=&space;\sum{\phi_i&space;\mathcal{N}(\mu_i,&space;\sigma_i^2)})</div>
+<div align=center>[equation](https://latex.codecogs.com/svg.latex?P(Y|M,S,E,R)&space;=&space;\sum{\phi_i&space;\mathcal{N}(\mu_i,&space;\sigma_i^2)})</div>
   
   Loss is to minimize the negative log-likelihood of the ground truth future locations under the predicted trajectory according to a GMM with parameters 
 
