@@ -9,24 +9,29 @@ TODO:
   - [x]  VGG-16 architecture
   - [x] ResNet-50 architecture
 
-- [ ] Separate the input information
+- [ ] Separate the input information which can avoid overlapping problem
 
   - HD Map (M)
-
-  - Surrounding vehicles' state (S)
-
+- Surrounding vehicles' state (S)
   - Ego state (E)
-
-  - Routing (R)
-
-- [ ] Input images --> CNN --> Parametric probability distribution (Mixed Gaussian Model) $\sigma$
+- Routing (R)
+  
+- [ ] Trained with continuous frames (every one second) 
+- [ ] Input images --> CNN --> Parametric probability distribution (Mixed Gaussian Model)
 
 ![equation](https://latex.codecogs.com/svg.latex?P(Y|M,S,E,R)&space;=&space;\sum{\phi_i&space;\mathcal{N}(\mu_i,&space;\sigma_i^2)})
-  
+
   Loss is to minimize the negative log-likelihood of the ground truth future locations under the predicted trajectory according to a GMM with parameters 
 
-  don't know many latent factors should be defined?
+  - [ ] Try to output probabilistic grid map
 
-  - [ ] Remove Routing information
+    explicit theory need to be stated ...
 
-- [ ] Input continuous frames (Video) 
+## Rendered Image
+
+Using 
+
+
+
+## VGG-based Network
+

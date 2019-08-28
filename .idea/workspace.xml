@@ -44,8 +44,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/netTrain/ResNet/test_model.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="565">
-              <caret line="63" lean-forward="true" selection-start-line="63" selection-end-line="63" />
+            <state relative-caret-position="616">
+              <caret line="66" lean-forward="true" selection-start-line="66" selection-end-line="66" />
               <folding>
                 <element signature="e#0#10#0" expanded="true" />
               </folding>
@@ -186,7 +186,7 @@
       </list>
     </option>
   </component>
-  <component name="ProjectFrameBounds" extendedState="1">
+  <component name="ProjectFrameBounds">
     <option name="x" value="499" />
     <option name="y" value="213" />
     <option name="width" value="926" />
@@ -392,15 +392,15 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="64" y="-4" width="1857" height="1085" extended-state="6" />
+    <frame x="499" y="213" width="926" height="1055" extended-state="0" />
     <editor active="true" />
     <layout>
-      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.17631005" />
+      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.35769656" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" weight="0.32925585" />
-      <window_info active="true" anchor="bottom" id="Run" order="2" visible="true" weight="0.17755102" />
+      <window_info active="true" anchor="bottom" id="Run" order="2" visible="true" weight="0.1829653" />
       <window_info anchor="bottom" id="Debug" order="3" weight="0.29285714" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
@@ -824,8 +824,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/netTrain/ResNet/test_model.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="565">
-          <caret line="63" lean-forward="true" selection-start-line="63" selection-end-line="63" />
+        <state relative-caret-position="616">
+          <caret line="66" lean-forward="true" selection-start-line="66" selection-end-line="66" />
           <folding>
             <element signature="e#0#10#0" expanded="true" />
           </folding>
