@@ -1,10 +1,12 @@
 # Future Trajectory Prediction with Deep Imitation Learning
 
+## Dataset
 
+CARLA simulator provides a model-based motion controller, which is used to act as expert driver. During simulation, states of both ego and surrounding vehicles, traffic light, as well as HD map are recorded.  
 
-## Rendered Image
+### Rendered Image
 
-Modify [the CARLA official visualizer example](https://github.com/carla-simulator/carla/blob/master/PythonAPI/examples/no_rendering_mode.py) to generate dataset
+Modify [the CARLA official visualizer example](https://github.com/carla-simulator/carla/blob/master/PythonAPI/examples/no_rendering_mode.py) to generate map and record actors' information
 
 - Simplify its map representation by removing: 
 
@@ -35,7 +37,7 @@ Record frequency: 10 Hz
 | Historical ego state                   | Render in red and reduce brightness with earlier time step   |
 | Historical surrounding vehicles' state | Render in green and reduce brightness with earlier time step |
 
-## Dataset
+### Scene Classification
 
 In order to balance data, classify as following four typical scenes:
 
@@ -71,7 +73,7 @@ Set Time step = 20, namely predict trajectory of two seconds
 | ------------------- | ------------- | ------------- | --------------------------------- |
 | mean absolute error | 1.1708 pixels | 1.8959 pixels | 1.75 pixels, equivalent to 0.35 m |
 
-### Existing Limitation
+### Failure Case
 
 **Tips**: 
 
@@ -99,11 +101,18 @@ Set Time step = 20, namely predict trajectory of two seconds
 
 ## ResNet-based Network
 
+Simply replace the base network with ResNet-50-v2.
 
+**Evaluation**: 
 
+Comparison between VGG-16 and ResNet-50-v2
 
+|              | Training | Validation | Testing         |
+| ------------ | -------- | ---------- | --------------- |
+| VGG-16       | 1.1708   | 1.8959     | 1.75 (=0.350 m) |
+| ResNet-50-v2 | 0.5587   | 1.2561     | 1.14 (=0.228 m) |
 
-## TODO
+# TODO
 
 - [x] Generate dataset with CARLA simulator
 - [x] One rendered image --> CNN --> Fully connected layers --> Future Trajectory
@@ -111,9 +120,9 @@ Set Time step = 20, namely predict trajectory of two seconds
   - [x] ResNet-50 architecture
 - [ ] Separate the input information which can avoid overlapping problem
   - HD Map (M)
-- Surrounding vehicles' state (S)
+  - Surrounding vehicles' state (S)
   - Ego state (E)
-- Routing (R)
+  - Routing (R)
 - [ ] Trained with continuous frames (every one second) 
 - [ ] Input images --> CNN --> Parametric probability distribution (Mixed Gaussian Model)
 
@@ -124,3 +133,13 @@ Set Time step = 20, namely predict trajectory of two seconds
 - [ ] Try to output probabilistic grid map
 
   explicit theory need to be stated ...
+
+
+
+# Reference
+
+[1] Chen, J., Yuan, B. and Tomizuka, M., 2019. Deep Imitation Learning for Autonomous Driving in Generic Urban Scenarios with Enhanced Safety. *arXiv preprint arXiv:1903.00640*.
+
+[2] Amini, A., Rosman, G., Karaman, S. and Rus, D., 2019, May. Variational end-to-end navigation and localization. In *2019 International Conference on Robotics and Automation (ICRA)*(pp. 8958-8964). IEEE.
+
+[3] Hong, J., Sapp, B. and Philbin, J., 2019. Rules of the Road: Predicting Driving Behavior with a Convolutional Model of Semantic Interactions. In *Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition* (pp. 8454-8462).
