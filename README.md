@@ -142,7 +142,7 @@ Comparison between VGG-16 and ResNet-50-v2
 <img src="https://latex.codecogs.com/svg.latex?P(Y|M,S,E,R)&space;=&space;\sum{\phi_i&space;\mathcal{N}(\mu_i,&space;\sigma_i^2)}">
 </p>
 
-  Loss is to minimize the negative log-likelihood of the ground truth future locations under the predicted trajectory according to a GMM with parameters 
+Loss is to minimize the negative log-likelihood of the ground truth future locations under the predicted trajectory according to a GMM with parameters
 
 - [ ] Try to output probabilistic grid map
 
