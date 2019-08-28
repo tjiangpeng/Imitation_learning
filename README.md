@@ -76,21 +76,25 @@ Set Time step = 20, namely predict trajectory of two seconds
 **Tips**: 
 
 - Zoom in the resulting image for better visualization 
-
 - white points denote ground truth and black points are predicted trajectory
 
-  
+**Summary:**
 
 1. The more straight the road is, the more accurate the prediction is.
 
-<img src="media/vgg16_1_1.gif" width="200">				<img src="media/vgg16_1_2.gif" width="200">
+   <img src="media/vgg16_1_1.gif" width="200">				<img src="media/vgg16_1_2.gif" width="200">
 
-2. The model does not know when the traffic light will turn to red, because only 2-second information is included
+2. Does not know when the traffic light will turn to red
+   
+   <img src="media/vgg16_2.gif" width="200">
 
+3. Cannot speed down and up in time 
 
+   <img src="media/vgg16_3_1.gif" width="200">				<img src="media/vgg16_3_2.gif" width="200">
 
-3. 
+4. Does not learn to stop for a while in front of "STOP" sign (represented by a cross-bar on map)
 
+   <img src="media/vgg16_4_1.gif" width="200">				<img src="media/vgg16_4_2.gif" width="200">
 
 
 ## ResNet-based Network
