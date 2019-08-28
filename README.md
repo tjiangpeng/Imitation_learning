@@ -86,20 +86,30 @@ Set Time step = 20, namely predict trajectory of two seconds
 
 1. The more straight the road is, the more accurate the prediction is.
 
-   <img src="media/vgg16_1_1.gif" width="200">				<img src="media/vgg16_1_2.gif" width="200">
+<p align="center">
+<img src="media/vgg16_1_1.gif" width="200">
+<img src="media/vgg16_1_2.gif" width="200">
+</p>
 
 2. Does not know when the traffic light will turn to red
-   
-   <img src="media/vgg16_2.gif" width="200">
+
+<p align="center">
+<img src="media/vgg16_2.gif" width="200">
+</p>
 
 3. Cannot speed down and up in time 
 
-   <img src="media/vgg16_3_1.gif" width="200">				<img src="media/vgg16_3_2.gif" width="200">
+<p align="center">
+<img src="media/vgg16_3_1.gif" width="200">				
+<img src="media/vgg16_3_2.gif" width="200">
+</p>
 
 4. Does not learn to stop for a while in front of "STOP" sign (represented by a cross-bar on map)
 
-   <img src="media/vgg16_4_1.gif" width="200">				<img src="media/vgg16_4_2.gif" width="200">
-
+<p align="center">
+<img src="media/vgg16_4_1.gif" width="200">				
+<img src="media/vgg16_4_2.gif" width="200">
+</p>
 
 ## ResNet-based Network
 
@@ -128,7 +138,9 @@ Comparison between VGG-16 and ResNet-50-v2
 - [ ] Trained with continuous frames (every one second) 
 - [ ] Input images --> CNN --> Parametric probability distribution (Mixed Gaussian Model)
 
-![equation](https://latex.codecogs.com/svg.latex?P(Y|M,S,E,R)&space;=&space;\sum{\phi_i&space;\mathcal{N}(\mu_i,&space;\sigma_i^2)})
+<p align="center">
+<img src="https://latex.codecogs.com/svg.latex?P(Y|M,S,E,R)&space;=&space;\sum{\phi_i&space;\mathcal{N}(\mu_i,&space;\sigma_i^2)}">
+</p>
 
   Loss is to minimize the negative log-likelihood of the ground truth future locations under the predicted trajectory according to a GMM with parameters 
 
