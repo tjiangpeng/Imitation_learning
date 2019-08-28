@@ -55,7 +55,7 @@ Use **VGGNet-16** as base network and output the **position (x, y)** of each tim
 
 **Loss function** is simply mean square error:
 
-![equation](https://latex.codecogs.com/svg.latex?L&space;=&space;\frac{1}{T}&space;\sum^T_{i=1}{(x_{t&plus;i}-\hat{x}_{t&plus;i})^2&space;&plus;&space;(y_{t&plus;i}-\hat{y}_{t&plus;i})^2})
+<img src="https://latex.codecogs.com/svg.latex?L&space;=&space;\frac{1}{T}&space;\sum^T_{i=1}{(x_{t&plus;i}-\hat{x}_{t&plus;i})^2&space;&plus;&space;(y_{t&plus;i}-\hat{y}_{t&plus;i})^2}" align="center">
 
 **Training process**:
 
