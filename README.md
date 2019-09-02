@@ -124,6 +124,12 @@ Comparison between VGG-16 and ResNet-50-v2
 | VGG-16       | 1.1708   | 1.8959     | 1.75 (=0.350 m) |
 | ResNet-50-v2 | 0.5587   | 1.2561     | 1.14 (=0.228 m) |
 
+# Requirement
+
+> Python 3.6
+>
+> tensorflow 1.12
+
 # TODO
 
 - [x] Generate dataset with CARLA simulator
