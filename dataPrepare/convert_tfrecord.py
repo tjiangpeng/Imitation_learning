@@ -1,3 +1,6 @@
+"""
+generate a single tfrecord file without classification
+"""
 import os
 import math
 from random import shuffle

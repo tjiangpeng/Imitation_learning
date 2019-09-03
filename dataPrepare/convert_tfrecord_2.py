@@ -1,3 +1,6 @@
+"""
+generate small classified shards of tfrecord files
+"""
 import os
 import math
 from random import shuffle

@@ -111,18 +111,19 @@ Set Time step = 20, namely predict trajectory of two seconds
 <img src="media/vgg16_4_2.gif" width="200">
 </p>
 
-## ResNet-based Network
+## Other Network
 
-Simply replace the base network with ResNet-50-v2.
+Simply replace the base network with ResNet-50-v2 and MobileNet-v2
 
 **Evaluation**: 
 
-Comparison between VGG-16 and ResNet-50-v2
+Comparison 
 
 |              | Training | Validation | Testing         |
 | ------------ | -------- | ---------- | --------------- |
 | VGG-16       | 1.1708   | 1.8959     | 1.75 (=0.350 m) |
 | ResNet-50-v2 | 0.5587   | 1.2561     | 1.14 (=0.228 m) |
+| MobileNet-v2 | 0.6988   | 1.6717     | 1.42 (=0.284 m) |
 
 # Requirement
 

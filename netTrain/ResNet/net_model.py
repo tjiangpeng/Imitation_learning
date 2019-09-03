@@ -19,13 +19,7 @@
 
 import os
 from tensorflow import keras
-# from . import get_submodules_from_kwargs
-# from keras_applications.imagenet_utils import _obtain_input_shape
 
-# backend = None
-# layers = None
-# models = None
-# keras_utils = None
 lrelu = lambda x: keras.activations.relu(x, alpha=0.1)
 
 BASE_WEIGHTS_PATH = (
@@ -126,7 +120,7 @@ def block2(x, filters, kernel_size=3, stride=1,
     # Returns
         Output tensor for the residual block.
     """
-    bn_axis = 1
+    bn_axis = -1 # channel last in tensorflow
 
     preact = keras.layers.BatchNormalization(axis=bn_axis, epsilon=1.001e-5,
                                              name=name + '_preact_bn')(x)
@@ -329,7 +323,7 @@ def ResNet(stack_fn,
     else:
         img_input = keras.layers.Input(tensor=input_tensor, shape=input_shape)
 
-    bn_axis = 1  # channel first
+    bn_axis = -1  # channel last in tensorflow
 
     x = keras.layers.ZeroPadding2D(padding=((3, 3), (3, 3)), name='conv1_pad')(img_input)
     x = keras.layers.Conv2D(64, 7, strides=2, use_bias=use_bias, name='conv1_conv')(x)

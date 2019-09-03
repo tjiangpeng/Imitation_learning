@@ -38,6 +38,9 @@ logger = logging.getLogger(__name__)
 IS_OCCLUDED_FLAG = 100
 LANE_TANGENT_VECTOR_SCALING = 4
 
+HEAD_DIST = 60.0
+FIELD_VIEW = 80.0
+
 """
 Code to plot track label trajectories on a map, for the tracking benchmark.
 """
@@ -76,6 +79,11 @@ class DatasetOnMapVisualizer:
             self.per_city_traj_dict = pfa.per_city_traj_dict
             self.log_egopose_dict = pfa.log_egopose_dict
             self.log_timestamp_dict = pfa.log_timestamp_dict
+
+            pos_fpaths = sorted(glob.glob(f"{self.dataset_dir}/{log_id}/poses/city_*.json"))
+            for i, pos_fpath in enumerate(pos_fpaths):
+                timestamp = pos_fpath.split("/")[-1].split(".")[0].split("_")[-1]
+                timestamp = int(timestamp)
 
     def plot_log_one_at_a_time(self, log_id="", idx=-1, save_video=True, city=""):
         """
@@ -126,12 +134,15 @@ class DatasetOnMapVisualizer:
 
                     logger.info(f"\tt={lidar_timestamp}")
                     if self.plot_lidar_bev:
-                        fig = plt.figure(figsize=(15, 15))
-                        plt.title(f"Log {log_id} @t={lidar_timestamp} in {city_name}")
+                        fig = plt.figure(figsize=(15, 15), facecolor='k')
+                        # plt.title(f"Log {log_id} @t={lidar_timestamp} in {city_name}")
                         plt.axis("off")
                         # ax_map = fig.add_subplot(131)
                         ax_3d = fig.add_subplot(111)
+                        # ax_3d.set_facecolor("black")
                         # ax_rgb = fig.add_subplot(133)
+                        ax_3d.set_xlim([-80, 80])
+                        ax_3d.set_ylim([-80, 80])
 
                     # need the ego-track here
                     pose_city_to_ego = self.log_egopose_dict[log_id][lidar_timestamp]
@@ -152,7 +163,8 @@ class DatasetOnMapVisualizer:
                         local_lane_polygons = avm.find_local_lane_polygons([xmin, xmax, ymin, ymax], city_name)
                         local_das = avm.find_local_driveable_areas([xmin, xmax, ymin, ymax], city_name)
 
-                    lidar_pts = load_ply(ply_fpath)
+                    # lidar_pts = load_ply(ply_fpath)
+                    lidar_pts = np.array(0)
                     if self.plot_lidar_in_img:
                         draw_ground_pts_in_image(
                             self.sdb,
@@ -168,15 +180,15 @@ class DatasetOnMapVisualizer:
                         )
 
                     if self.plot_lidar_bev:
-                        driveable_area_pts = copy.deepcopy(lidar_pts)
-                        driveable_area_pts = city_to_egovehicle_se3.transform_point_cloud(
-                            driveable_area_pts
-                        )  # put into city coords
-                        driveable_area_pts = avm.remove_non_driveable_area_points(driveable_area_pts, city_name)
-                        driveable_area_pts = avm.remove_ground_surface(driveable_area_pts, city_name)
-                        driveable_area_pts = city_to_egovehicle_se3.inverse_transform_point_cloud(
-                            driveable_area_pts
-                        )  # put back into ego-vehicle coords
+                        # driveable_area_pts = copy.deepcopy(lidar_pts)
+                        # driveable_area_pts = city_to_egovehicle_se3.transform_point_cloud(
+                        #     driveable_area_pts
+                        # )  # put into city coords
+                        # driveable_area_pts = avm.remove_non_driveable_area_points(driveable_area_pts, city_name)
+                        # driveable_area_pts = avm.remove_ground_surface(driveable_area_pts, city_name)
+                        # driveable_area_pts = city_to_egovehicle_se3.inverse_transform_point_cloud(
+                        #     driveable_area_pts
+                        # )  # put back into ego-vehicle coords
                         self.render_bev_labels_mpl(
                             city_name,
                             ax_3d,
@@ -196,7 +208,7 @@ class DatasetOnMapVisualizer:
 
                         plt.savefig(
                             f"{self.experiment_prefix}_per_log_viz/{log_id}/{city_name}_{log_id}_{lidar_timestamp}.png",
-                            dpi=400,
+                            dpi=400, facecolor='k'
                         )
                     # plt.show()
                     # plt.close("all")
@@ -248,20 +260,28 @@ class DatasetOnMapVisualizer:
             # rendering instead in the egovehicle reference frame
             for da_idx, local_da in enumerate(local_das):
                 local_da = city_to_egovehicle_se3.inverse_transform_point_cloud(local_da)
-                local_das[da_idx] = rotate_polygon_about_pt(local_da, city_to_egovehicle_se3.rotation, np.zeros(3))
+                # local_das[da_idx] = rotate_polygon_about_pt(local_da, city_to_egovehicle_se3.rotation, np.zeros(3))
+                local_das[da_idx] = local_da
 
             for lane_idx, local_lane_polygon in enumerate(local_lane_polygons):
                 local_lane_polygon = city_to_egovehicle_se3.inverse_transform_point_cloud(local_lane_polygon)
-                local_lane_polygons[lane_idx] = rotate_polygon_about_pt(
-                    local_lane_polygon, city_to_egovehicle_se3.rotation, np.zeros(3)
-                )
+                # local_lane_polygons[lane_idx] = rotate_polygon_about_pt(
+                #     local_lane_polygon, city_to_egovehicle_se3.rotation, np.zeros(3)
+                # )
+                local_lane_polygons[lane_idx] = local_lane_polygon
 
-        draw_lane_polygons(ax, local_lane_polygons)
-        draw_lane_polygons(ax, local_das, color="tab:pink")
+        draw_lane_polygons(ax, local_lane_polygons, color="tab:gray")
+        draw_lane_polygons(ax, local_das, color=(1, 0, 1))
 
-        if axis is not "city_axis":
-            lidar_pts = rotate_polygon_about_pt(lidar_pts, city_to_egovehicle_se3.rotation, np.zeros((3,)))
-            draw_point_cloud_bev(ax, lidar_pts)
+        # if axis is not "city_axis":
+        #     # lidar_pts = np.vstack([lidar_pts, np.array([0, 0, 0])])
+        #     # lidar_pts = rotate_polygon_about_pt(lidar_pts, city_to_egovehicle_se3.rotation, np.zeros((3,)))
+        #     draw_point_cloud_bev(ax, lidar_pts)
+
+        # render ego vehicle
+        bbox_ego = np.array([[-1.0, -1.0, 0.0], [3.0, -1.0, 0.0], [-1.0, 1.0, 0.0], [3.0, 1.0, 0.0]])
+        # bbox_ego = rotate_polygon_about_pt(bbox_ego, city_to_egovehicle_se3.rotation, np.zeros((3,)))
+        plot_bbox_2D(ax, bbox_ego, 'g')
 
         objects = self.log_timestamp_dict[log_id][timestamp]
 
@@ -274,12 +294,13 @@ class DatasetOnMapVisualizer:
             for i, frame_rec in enumerate(objects):
                 bbox_city_fr = frame_rec.bbox_city_fr
                 bbox_ego_frame = frame_rec.bbox_ego_frame
-                color = frame_rec.color
+                # color = frame_rec.color
+                color = (1, 1, 0)  # all surrounding vehicles are rendered in yellow
 
                 if frame_rec.occlusion_val != IS_OCCLUDED_FLAG:
-                    bbox_ego_frame = rotate_polygon_about_pt(
-                        bbox_ego_frame, city_to_egovehicle_se3.rotation, np.zeros((3,))
-                    )
+                    # bbox_ego_frame = rotate_polygon_about_pt(
+                    #     bbox_ego_frame, city_to_egovehicle_se3.rotation, np.zeros((3,))
+                    # )
                     if axis is "city_axis":
                         plot_bbox_2D(ax, bbox_city_fr, color)
                         if self.plot_lane_tangent_arrows:
@@ -291,18 +312,29 @@ class DatasetOnMapVisualizer:
                             dy = tangent_xy[1] * LANE_TANGENT_VECTOR_SCALING
                             ax.arrow(bbox_center[0], bbox_center[1], dx, dy, color="r", width=0.5, zorder=2)
                     else:
-                        plot_bbox_2D(ax, bbox_ego_frame, color)
-                        cuboid_lidar_pts, _ = filter_point_cloud_to_bbox_2D_vectorized(
-                            bbox_ego_frame[:, :2], copy.deepcopy(lidar_pts)
-                        )
-                        if cuboid_lidar_pts is not None:
-                            draw_point_cloud_bev(ax, cuboid_lidar_pts, color)
+                        x = bbox_ego_frame[:, 0].tolist()
+                        y = bbox_ego_frame[:, 1].tolist()
+                        x[1], x[2], x[3], y[1], y[2], y[3] = x[2], x[3], x[1], y[2], y[3], y[1]
+                        ax.fill(x, y, c=(1, 1, 0), alpha=1)
+                        # plot_bbox_2D(ax, bbox_ego_frame, color)
+                        # cuboid_lidar_pts, _ = filter_point_cloud_to_bbox_2D_vectorized(
+                        #     bbox_ego_frame[:, :2], copy.deepcopy(lidar_pts)
+                        # )
+                        # if cuboid_lidar_pts is not None:
+                            # draw_point_cloud_bev(ax, cuboid_lidar_pts, color)
 
         else:
             logger.info(f"all occluded at {timestamp}")
             xcenter = city_to_egovehicle_se3.translation[0]
             ycenter = city_to_egovehicle_se3.translation[1]
             ax.text(xcenter - 146, ycenter + 50, "ALL OBJECTS OCCLUDED", fontsize=30)
+
+    def render_ego_past_traj(
+        self,
+
+
+    ) -> None:
+        pass
 
     def render_front_camera_on_axis(self, ax: plt.Axes, timestamp: int, log_id: str) -> None:
         """
@@ -328,7 +360,8 @@ def visualize_30hz_benchmark_data_on_map(args: Any) -> None:
 if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dataset_dir", type=str, help="path to where the logs live")
+    parser.add_argument("--dataset_dir", type=str, help="path to where the logs live",
+                        default='../../data/argo/argoverse-tracking/sample')
     parser.add_argument(
         "--experiment_prefix",
         default="argoverse_bev_viz",
@@ -336,8 +369,10 @@ if __name__ == "__main__":
         help="results will be saved in a folder with this prefix for its name",
     )
     parser.add_argument(
-        "--log_id", default=None, type=str, help="log ids, this is the folder name in argoverse-tracking/*/[log_id]"
+        "--log_id", default='c6911883-1843-3727-8eaa-41dc8cda8993', type=str,
+        help="log ids, this is the folder name in argoverse-tracking/*/[log_id]",
     )
+
     parser.add_argument(
         "--use_existing_files",
         action="store_true",
