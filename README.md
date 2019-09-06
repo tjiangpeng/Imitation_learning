@@ -129,7 +129,9 @@ Comparison
 
 > Python 3.6
 >
-> tensorflow 1.12
+> tensorflow 1.12.3
+>
+> opencv-python 3.4.5.20
 
 # TODO
 

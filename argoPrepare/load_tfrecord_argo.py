@@ -23,27 +23,14 @@ _SHUFFLE_BUFFER = 10000
 
 
 def get_filenames(is_training, data_dir):
-    """Return filenames for dataset."""
+    """Return filenames for dataset. (for argoverse dataset)"""
+
+    filenames = []
+    for dir in data_dir:
+        filenames = filenames + glob.glob(os.path.join(dir, '*_tf_record'))
     if is_training:
-        shards_taken = []
-        shards_names = [[], [], [], []]
-        for dir in data_dir:
-            shards_names[0] = shards_names[0] + glob.glob(os.path.join(dir, 'train', '*bend-road*'))
-            shards_names[1] = shards_names[1] + glob.glob(os.path.join(dir, 'train', '*red-light*'))
-            shards_names[2] = shards_names[2] + glob.glob(os.path.join(dir, 'train', '*front-vehicle*'))
-            shards_names[3] = shards_names[3] + glob.glob(os.path.join(dir, 'train', '*normal*'))
-        num_to_take = min([len(i) for i in shards_names])
-        print("Take {0} shards for each scene, totally about {1} frames.".format(num_to_take, num_to_take*512*4))
-        for f in shards_names:
-            shuffle(f)
-            shards_taken = shards_taken + f[0:num_to_take]
-        shuffle(shards_taken)
-        return shards_taken
-    else:
-        filenames = []
-        for dir in data_dir:
-            filenames = filenames + glob.glob(os.path.join(dir, 'validation', 'validation*'))
-        return filenames
+        shuffle(filenames)
+    return filenames
 
 
 def _parse_example_proto(example_serialized):

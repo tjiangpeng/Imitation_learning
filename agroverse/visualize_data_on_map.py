@@ -15,6 +15,7 @@ import imageio
 # will be thrown, e.g. "unrecognized selector sent to instance"
 import mayavi
 import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
 import numpy as np
 
 from argoverse.data_loading.frame_label_accumulator import PerFrameLabelAccumulator
@@ -40,6 +41,10 @@ LANE_TANGENT_VECTOR_SCALING = 4
 
 HEAD_DIST = 60.0
 FIELD_VIEW = 80.0
+
+EGO_TIME_STEP = 20
+SURR_TIME_STEP = 10
+FUTURE_TIME_STEP = 10
 
 """
 Code to plot track label trajectories on a map, for the tracking benchmark.
@@ -80,10 +85,11 @@ class DatasetOnMapVisualizer:
             self.log_egopose_dict = pfa.log_egopose_dict
             self.log_timestamp_dict = pfa.log_timestamp_dict
 
-            pos_fpaths = sorted(glob.glob(f"{self.dataset_dir}/{log_id}/poses/city_*.json"))
-            for i, pos_fpath in enumerate(pos_fpaths):
-                timestamp = pos_fpath.split("/")[-1].split(".")[0].split("_")[-1]
-                timestamp = int(timestamp)
+            self.timestamps = []
+            fpaths = sorted(glob.glob(f"{self.dataset_dir}/{log_id}/per_sweep_annotations_amodal/tracked_object_labels_*.json"))
+            for i, fpath in enumerate(fpaths):
+                stamp = fpath.split("/")[-1].split(".")[0].split("_")[-1]
+                self.timestamps.append(int(stamp))
 
     def plot_log_one_at_a_time(self, log_id="", idx=-1, save_video=True, city=""):
         """
@@ -115,37 +121,38 @@ class DatasetOnMapVisualizer:
             for log_id in set(log_ids):
                 logger.info(f"Log: {log_id}")
 
-                ply_fpaths = sorted(glob.glob(f"{self.dataset_dir}/{log_id}/lidar/PC_*.ply"))
-
                 # then iterate over the time axis
-                for i, ply_fpath in enumerate(ply_fpaths):
+                for i, timestamp in enumerate(self.timestamps):
+                    if i < EGO_TIME_STEP:
+                        continue
+                    if i > len(self.timestamps) - FUTURE_TIME_STEP:
+                        break
                     if idx != -1:
                         if i != idx:
                             continue
                     if i % 500 == 0:
                         logger.info(f"\tOn file {i} of {log_id}")
-                    lidar_timestamp = ply_fpath.split("/")[-1].split(".")[0].split("_")[-1]
-                    lidar_timestamp = int(lidar_timestamp)
-                    if lidar_timestamp not in self.log_egopose_dict[log_id]:
+
+                    if timestamp not in self.log_egopose_dict[log_id]:
                         all_available_timestamps = sorted(self.log_egopose_dict[log_id].keys())
-                        diff = (all_available_timestamps[0] - lidar_timestamp) / 1e9
+                        diff = (all_available_timestamps[0] - timestamp) / 1e9
                         logger.info(f"{diff:.2f} sec before first labeled sweep")
                         continue
 
-                    logger.info(f"\tt={lidar_timestamp}")
+                    logger.info(f"\tt={timestamp}")
                     if self.plot_lidar_bev:
-                        fig = plt.figure(figsize=(15, 15), facecolor='k')
+                        fig = plt.figure(figsize=(4, 4), facecolor='k')
                         # plt.title(f"Log {log_id} @t={lidar_timestamp} in {city_name}")
                         plt.axis("off")
                         # ax_map = fig.add_subplot(131)
                         ax_3d = fig.add_subplot(111)
                         # ax_3d.set_facecolor("black")
                         # ax_rgb = fig.add_subplot(133)
-                        ax_3d.set_xlim([-80, 80])
-                        ax_3d.set_ylim([-80, 80])
+                        ax_3d.set_xlim([-FIELD_VIEW + HEAD_DIST, HEAD_DIST])
+                        ax_3d.set_ylim([-FIELD_VIEW/2, FIELD_VIEW/2])
 
                     # need the ego-track here
-                    pose_city_to_ego = self.log_egopose_dict[log_id][lidar_timestamp]
+                    pose_city_to_ego = self.log_egopose_dict[log_id][timestamp]
                     xcenter = pose_city_to_ego["translation"][0]
                     ycenter = pose_city_to_ego["translation"][1]
                     ego_center_xyz = np.array(pose_city_to_ego["translation"])
@@ -163,43 +170,28 @@ class DatasetOnMapVisualizer:
                         local_lane_polygons = avm.find_local_lane_polygons([xmin, xmax, ymin, ymax], city_name)
                         local_das = avm.find_local_driveable_areas([xmin, xmax, ymin, ymax], city_name)
 
-                    # lidar_pts = load_ply(ply_fpath)
-                    lidar_pts = np.array(0)
-                    if self.plot_lidar_in_img:
-                        draw_ground_pts_in_image(
-                            self.sdb,
-                            copy.deepcopy(lidar_pts),
-                            city_to_egovehicle_se3,
-                            avm,
-                            log_id,
-                            lidar_timestamp,
-                            city_name,
-                            self.dataset_dir,
-                            self.experiment_prefix,
-                            plot_ground=True,
-                        )
 
                     if self.plot_lidar_bev:
-                        # driveable_area_pts = copy.deepcopy(lidar_pts)
-                        # driveable_area_pts = city_to_egovehicle_se3.transform_point_cloud(
-                        #     driveable_area_pts
-                        # )  # put into city coords
-                        # driveable_area_pts = avm.remove_non_driveable_area_points(driveable_area_pts, city_name)
-                        # driveable_area_pts = avm.remove_ground_surface(driveable_area_pts, city_name)
-                        # driveable_area_pts = city_to_egovehicle_se3.inverse_transform_point_cloud(
-                        #     driveable_area_pts
-                        # )  # put back into ego-vehicle coords
+
                         self.render_bev_labels_mpl(
                             city_name,
                             ax_3d,
                             "ego_axis",
-                            lidar_pts,
+                            # lidar_pts,
                             copy.deepcopy(local_lane_polygons),
                             copy.deepcopy(local_das),
                             log_id,
-                            lidar_timestamp,
+                            timestamp,
+                            i,
                             city_to_egovehicle_se3,
                             avm,
+                        )
+
+                        self.render_ego_past_traj(
+                            ax_3d,
+                            log_id,
+                            i,
+                            city_to_egovehicle_se3
                         )
 
                         fig.tight_layout()
@@ -207,8 +199,8 @@ class DatasetOnMapVisualizer:
                             os.makedirs(f"{self.experiment_prefix}_per_log_viz/{log_id}")
 
                         plt.savefig(
-                            f"{self.experiment_prefix}_per_log_viz/{log_id}/{city_name}_{log_id}_{lidar_timestamp}.png",
-                            dpi=400, facecolor='k'
+                            f"{self.experiment_prefix}_per_log_viz/{log_id}/{city_name}_{log_id}_{timestamp}.png",
+                            dpi=100, facecolor='k'
                         )
                     # plt.show()
                     # plt.close("all")
@@ -234,11 +226,12 @@ class DatasetOnMapVisualizer:
         city_name: str,
         ax: plt.Axes,
         axis: str,
-        lidar_pts: np.ndarray,
+        # lidar_pts: np.ndarray,
         local_lane_polygons: np.ndarray,
         local_das: np.ndarray,
         log_id: str,
         timestamp: int,
+        timestamp_ind: int,
         city_to_egovehicle_se3: SE3,
         avm: ArgoverseMap,
     ) -> None:
@@ -273,55 +266,41 @@ class DatasetOnMapVisualizer:
         draw_lane_polygons(ax, local_lane_polygons, color="tab:gray")
         draw_lane_polygons(ax, local_das, color=(1, 0, 1))
 
-        # if axis is not "city_axis":
-        #     # lidar_pts = np.vstack([lidar_pts, np.array([0, 0, 0])])
-        #     # lidar_pts = rotate_polygon_about_pt(lidar_pts, city_to_egovehicle_se3.rotation, np.zeros((3,)))
-        #     draw_point_cloud_bev(ax, lidar_pts)
-
         # render ego vehicle
         bbox_ego = np.array([[-1.0, -1.0, 0.0], [3.0, -1.0, 0.0], [-1.0, 1.0, 0.0], [3.0, 1.0, 0.0]])
         # bbox_ego = rotate_polygon_about_pt(bbox_ego, city_to_egovehicle_se3.rotation, np.zeros((3,)))
         plot_bbox_2D(ax, bbox_ego, 'g')
 
+        # render surrounding vehicle and pedestrians
         objects = self.log_timestamp_dict[log_id][timestamp]
+        hist_objects = {}
 
         all_occluded = True
         for frame_rec in objects:
             if frame_rec.occlusion_val != IS_OCCLUDED_FLAG:
                 all_occluded = False
+            hist_objects[frame_rec.track_uuid] = [None for i in range(0, SURR_TIME_STEP+1)]
+            hist_objects[frame_rec.track_uuid][SURR_TIME_STEP] = frame_rec.bbox_city_fr
 
         if not all_occluded:
-            for i, frame_rec in enumerate(objects):
-                bbox_city_fr = frame_rec.bbox_city_fr
-                bbox_ego_frame = frame_rec.bbox_ego_frame
-                # color = frame_rec.color
-                color = (1, 1, 0)  # all surrounding vehicles are rendered in yellow
+            for ind, i in enumerate(range(timestamp_ind-SURR_TIME_STEP, timestamp_ind)):
+                objects = self.log_timestamp_dict[log_id][self.timestamps[i]]
+                for frame_rec in objects:
+                    if frame_rec.track_uuid in hist_objects:
+                        hist_objects[frame_rec.track_uuid][ind] = frame_rec.bbox_city_fr
 
-                if frame_rec.occlusion_val != IS_OCCLUDED_FLAG:
-                    # bbox_ego_frame = rotate_polygon_about_pt(
-                    #     bbox_ego_frame, city_to_egovehicle_se3.rotation, np.zeros((3,))
-                    # )
-                    if axis is "city_axis":
-                        plot_bbox_2D(ax, bbox_city_fr, color)
-                        if self.plot_lane_tangent_arrows:
-                            bbox_center = np.mean(bbox_city_fr, axis=0)
-                            tangent_xy, conf = avm.get_lane_direction(
-                                query_xy_city_coords=bbox_center[:2], city_name=city_name
-                            )
-                            dx = tangent_xy[0] * LANE_TANGENT_VECTOR_SCALING
-                            dy = tangent_xy[1] * LANE_TANGENT_VECTOR_SCALING
-                            ax.arrow(bbox_center[0], bbox_center[1], dx, dy, color="r", width=0.5, zorder=2)
-                    else:
-                        x = bbox_ego_frame[:, 0].tolist()
-                        y = bbox_ego_frame[:, 1].tolist()
-                        x[1], x[2], x[3], y[1], y[2], y[3] = x[2], x[3], x[1], y[2], y[3], y[1]
-                        ax.fill(x, y, c=(1, 1, 0), alpha=1)
-                        # plot_bbox_2D(ax, bbox_ego_frame, color)
-                        # cuboid_lidar_pts, _ = filter_point_cloud_to_bbox_2D_vectorized(
-                        #     bbox_ego_frame[:, :2], copy.deepcopy(lidar_pts)
-                        # )
-                        # if cuboid_lidar_pts is not None:
-                            # draw_point_cloud_bev(ax, cuboid_lidar_pts, color)
+            # render color with decreasing lightness
+            color_lightness = np.linspace(1, 0, SURR_TIME_STEP+2)[1:].tolist()
+            for track_id in hist_objects:
+                for ind_color, bbox_city_fr in enumerate(hist_objects[track_id]):
+                    if bbox_city_fr is None:
+                        continue
+                    bbox_relative = city_to_egovehicle_se3.inverse_transform_point_cloud(bbox_city_fr)
+
+                    x = bbox_relative[:, 0].tolist()
+                    y = bbox_relative[:, 1].tolist()
+                    x[1], x[2], x[3], y[1], y[2], y[3] = x[2], x[3], x[1], y[2], y[3], y[1]
+                    ax.fill(x, y, c=(1, 1, color_lightness[ind_color]), alpha=1)
 
         else:
             logger.info(f"all occluded at {timestamp}")
@@ -331,19 +310,21 @@ class DatasetOnMapVisualizer:
 
     def render_ego_past_traj(
         self,
-
-
+        axes: Axes,
+        log_id: str,
+        timestamp_ind: int,
+        city_to_egovehicle_se3: SE3,
     ) -> None:
-        pass
 
-    def render_front_camera_on_axis(self, ax: plt.Axes, timestamp: int, log_id: str) -> None:
-        """
-        Args:
-            ax: Matplotlib axes
-            timestamp: The timestamp
-            log_id: The ID of a log
-        """
-        ax.imshow(imageio.imread(f"{self.dataset_dir}/{log_id}/ring_front_center/ring_front_center_{timestamp}.jpg"))
+        x = [0]
+        y = [0]
+        for i in range(timestamp_ind-EGO_TIME_STEP, timestamp_ind):
+            timestamp = self.timestamps[i]
+            pose_city_to_ego = self.log_egopose_dict[log_id][timestamp]
+            relative_pose = city_to_egovehicle_se3.inverse_transform_point_cloud(pose_city_to_ego["translation"])
+            x.append(relative_pose[0])
+            y.append(relative_pose[1])
+        axes.scatter(x, y, s=5, c='b')
 
 
 def visualize_30hz_benchmark_data_on_map(args: Any) -> None:
