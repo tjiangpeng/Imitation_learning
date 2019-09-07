@@ -61,6 +61,7 @@ class ForecastingOnMapVisualizer:
 
             # Figure setting
             fig = plt.figure(num=1, figsize=(4.3, 4.3), facecolor='k')
+            plt.clf()
             plt.axis("off")
             ax = fig.add_subplot(111)
             ax.set_xlim([-FIELD_VIEW/2+xcenter, FIELD_VIEW/2+xcenter])
@@ -85,7 +86,7 @@ class ForecastingOnMapVisualizer:
                 if not Path(f"{self.dataset_dir}../rendered_image").exists():
                     os.makedirs(f"{self.dataset_dir}../rendered_image")
                 plt.savefig(
-                    f"{self.dataset_dir}../rendered_image/{city_name}_{log_num}_{i}.png",
+                    f"{self.dataset_dir}../rendered_image/{city_name}_{self.filenames[log_num][0:-4]}_{i}.png",
                     dpi=100, facecolor='k', bbox_inches='tight', pad_inches=0
                 )
 
@@ -103,11 +104,6 @@ class ForecastingOnMapVisualizer:
         for group_name, group_data in frames:
             if group_name == which_timestamps[-1]:
                 track_ids = group_data["TRACK_ID"].values
-                # x = group_data["X"].values
-                # y = group_data["Y"].values
-                # for idx, track_id in enumerate(group_data["TRACK_ID"].values):
-                #     hist_objects[track_id] = [None for i in range(0, SURR_TIME_STEP+1)]
-                #     hist_objects[track_id][SURR_TIME_STEP] = [x[idx], y[idx]]
             if group_name in which_timestamps:
                 ind = which_timestamps.index(group_name)
                 which_groups[ind] = group_data.values[:, 1:5]
@@ -137,14 +133,16 @@ class ForecastingOnMapVisualizer:
         cur_time: int
     ):
         marker_size = 2
-        color = 'b'
+        color_lightness = np.linspace(1, 0, EGO_TIME_STEP + 1)[1:].tolist()
         for i in range(cur_time-EGO_TIME_STEP, cur_time+1):
             if i == cur_time:
                 marker_size = 10
-                color = 'g'
+                color = [(0, 1, 0)]
+            else:
+                color = [(color_lightness[i], color_lightness[i], 1)]
             x = self.log_agent_pose[i, 0]
             y = self.log_agent_pose[i, 1]
-            ax.scatter(x, y, s=marker_size, c=color, alpha=1)
+            ax.scatter(x, y, s=marker_size, c=color, alpha=1, zorder=2)
 
         past_traj = self.log_agent_pose[cur_time-EGO_TIME_STEP:cur_time, :] - self.log_agent_pose[cur_time, :]
         return past_traj
@@ -177,7 +175,7 @@ def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset_dir", type=str, help="path to where the logs live",
-                        default="../../data/argo/forecasting/sample2/data/")
+                        default="../../data/argo/forecasting/sample1/data/")
     parser.add_argument("--save_image", help="save rendered image or not",
                         default=True)
 
