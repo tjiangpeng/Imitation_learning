@@ -42,6 +42,9 @@ class ForecastingOnMapVisualizer:
         self.num = len(self.afl)
         self.log_agent_pose = None
         self.timestamps = None
+        self.filenames = [None for i in range(self.num)]
+        for i, seq in enumerate(self.afl.seq_list):
+            self.filenames[i] = str(seq).split('/')[-1]
 
     def plot_log_one_at_a_time(self, avm=None, log_num: int = 0, save_img=False):
         df = self.afl[log_num].seq_df
@@ -50,12 +53,6 @@ class ForecastingOnMapVisualizer:
 
         self.timestamps = list(sorted(set(df["TIMESTAMP"].values.tolist())))
         self.log_agent_pose = self.afl[log_num].agent_traj
-        # hist_objects[track_id] = [0,0,0,0,0,....]
-
-        frames = df.groupby("TIMESTAMP")
-        for group_name, group_data in frames:
-            print(group_name)
-            pass
 
         for i in range(time_step):
             if i < EGO_TIME_STEP or i >= time_step - FUTURE_TIME_STEP:
@@ -171,15 +168,16 @@ def visualize_forecating_data_on_map(args: Any) -> None:
 
     fomv = ForecastingOnMapVisualizer(args.dataset_dir)
     for i in range(fomv.num):
+        print(f"Processing the file: {fomv.filenames[i]}")
         fomv.plot_log_one_at_a_time(avm, log_num=i, save_img=args.save_image)
-    a = 1
+
 
 
 def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset_dir", type=str, help="path to where the logs live",
-                        default="../../data/argo/forecasting/sample/data/")
+                        default="../../data/argo/forecasting/sample2/data/")
     parser.add_argument("--save_image", help="save rendered image or not",
                         default=True)
 
