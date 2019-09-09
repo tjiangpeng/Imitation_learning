@@ -6,6 +6,7 @@ import os
 from typing import Any
 import pandas as pd
 from pathlib import Path
+from math import ceil
 
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
@@ -13,8 +14,11 @@ import numpy as np
 
 from argoverse.data_loading.argoverse_forecasting_loader import ArgoverseForecastingLoader
 from argoverse.map_representation.map_api import ArgoverseMap
-from argoverse.visualization.visualize_sequences import viz_sequence
 from argoverse.utils.mpl_plotting_utils import draw_lane_polygons
+
+import tensorflow as tf
+
+from argoPrepare.tfrecord_processing import convert_to_example
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -22,11 +26,13 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # -- Constants ----------------------------------------------------------------
 # =============================================================================
-EGO_TIME_STEP = 19
+AGENT_TIME_STEP = 19
 SURR_TIME_STEP = 10
 FUTURE_TIME_STEP = 30
 
 FIELD_VIEW = 80.0  # meter
+
+FRAME_IN_SHARD = 512
 # =============================================================================
 # -- Functions ----------------------------------------------------------------
 # =============================================================================
@@ -34,7 +40,7 @@ FIELD_VIEW = 80.0  # meter
 
 class ForecastingOnMapVisualizer:
     def __init__(
-            self, dataset_dir: str
+            self, dataset_dir: str, convert_tf_record=False, save_img=False, overwrite_rendered_file=True
     ) -> None:
 
         self.dataset_dir = dataset_dir
@@ -44,9 +50,20 @@ class ForecastingOnMapVisualizer:
         self.timestamps = None
         self.filenames = [None for i in range(self.num)]
         for i, seq in enumerate(self.afl.seq_list):
-            self.filenames[i] = str(seq).split('/')[-1]
+            self.filenames[i] = int(str(seq).split('/')[-1][0:-4])
 
-    def plot_log_one_at_a_time(self, avm=None, log_num: int = 0, save_img=False):
+        self.convert_tf_record = convert_tf_record
+        self.overwrite_rendered_file = overwrite_rendered_file
+        self.save_img = save_img
+        if save_img:
+            if not Path(f"{self.dataset_dir}../rendered_image").exists():
+                os.makedirs(f"{self.dataset_dir}../rendered_image")
+            num_shards = ceil(max(self.filenames) / FRAME_IN_SHARD)
+            for i in range(1, num_shards+1):
+                if not Path(f"{self.dataset_dir}../rendered_image/{i}").exists():
+                    os.makedirs(f"{self.dataset_dir}../rendered_image/{i}")
+
+    def plot_log_one_at_a_time(self, avm=None, log_num: int = 0):
         df = self.afl[log_num].seq_df
         city_name = df["CITY_NAME"].values[0]
         time_step = self.afl[log_num].agent_traj.shape[0]
@@ -54,9 +71,20 @@ class ForecastingOnMapVisualizer:
         self.timestamps = list(sorted(set(df["TIMESTAMP"].values.tolist())))
         self.log_agent_pose = self.afl[log_num].agent_traj
 
+        if not self.log_agent_pose.shape[0] == 50:
+            sys.exit("The agent's tacking time is less than 5 seconds!")
+
         for i in range(time_step):
-            if i < EGO_TIME_STEP or i >= time_step - FUTURE_TIME_STEP:
+            if i < AGENT_TIME_STEP or i >= time_step - FUTURE_TIME_STEP:
                 continue
+            if self.save_img:
+                file_num = self.filenames[log_num]
+                shard_ind = ceil(file_num / FRAME_IN_SHARD)
+                img_name = "{0}_{1:0>7d}_{2}.png".format(city_name, file_num, i)
+                if (not self.overwrite_rendered_file) and \
+                        Path(f"{self.dataset_dir}../rendered_image/{shard_ind}/{img_name}").exists():
+                    continue
+
             [xcenter, ycenter] = self.afl[log_num].agent_traj[i, :]
 
             # Figure setting
@@ -78,17 +106,20 @@ class ForecastingOnMapVisualizer:
             draw_lane_polygons(ax, local_das, color=(1, 0, 1))
 
             self.render_surr_past_traj(ax, df, i)
-            self.render_agent_past_traj(ax, i)
-            traj = self.get_future_traj(ax, i, True)
+            past_traj = self.render_agent_past_traj(ax, i)
 
             fig.tight_layout()
-            if save_img:
-                if not Path(f"{self.dataset_dir}../rendered_image").exists():
-                    os.makedirs(f"{self.dataset_dir}../rendered_image")
+            if self.save_img:
+                self.get_future_traj(ax, i, True)
                 plt.savefig(
-                    f"{self.dataset_dir}../rendered_image/{city_name}_{self.filenames[log_num][0:-4]}_{i}.png",
+                    f"{self.dataset_dir}../rendered_image/{shard_ind}/{img_name}",
                     dpi=100, facecolor='k', bbox_inches='tight', pad_inches=0
                 )
+            future_traj = 0
+            if self.convert_tf_record:
+                future_traj = self.get_future_traj(ax, i, False)
+                plt.savefig("temp.png", dpi=100, facecolor='k', bbox_inches='tight', pad_inches=0)
+        return past_traj, future_traj
 
     def render_surr_past_traj(
         self,
@@ -133,8 +164,8 @@ class ForecastingOnMapVisualizer:
         cur_time: int
     ):
         marker_size = 2
-        color_lightness = np.linspace(1, 0, EGO_TIME_STEP + 1)[1:].tolist()
-        for i in range(cur_time-EGO_TIME_STEP, cur_time+1):
+        color_lightness = np.linspace(1, 0, AGENT_TIME_STEP + 1)[1:].tolist()
+        for i in range(cur_time-AGENT_TIME_STEP, cur_time+1):
             if i == cur_time:
                 marker_size = 10
                 color = [(0, 1, 0)]
@@ -144,7 +175,7 @@ class ForecastingOnMapVisualizer:
             y = self.log_agent_pose[i, 1]
             ax.scatter(x, y, s=marker_size, c=color, alpha=1, zorder=2)
 
-        past_traj = self.log_agent_pose[cur_time-EGO_TIME_STEP:cur_time, :] - self.log_agent_pose[cur_time, :]
+        past_traj = self.log_agent_pose[cur_time-AGENT_TIME_STEP:cur_time, :] - self.log_agent_pose[cur_time, :]
         return past_traj
 
     def get_future_traj(
@@ -163,25 +194,57 @@ class ForecastingOnMapVisualizer:
 
 def visualize_forecating_data_on_map(args: Any) -> None:
     avm = ArgoverseMap()
-
-    fomv = ForecastingOnMapVisualizer(args.dataset_dir)
+    fomv = ForecastingOnMapVisualizer(dataset_dir=args.dataset_dir,
+                                      save_img=args.save_image,
+                                      overwrite_rendered_file=args.overwrite_rendered_file)
     for i in range(fomv.num):
         print(f"Processing the file: {fomv.filenames[i]}")
-        fomv.plot_log_one_at_a_time(avm, log_num=i, save_img=args.save_image)
+        fomv.plot_log_one_at_a_time(avm, log_num=i)
 
+
+def write_tf_record(args: Any) -> None:
+    avm = ArgoverseMap()
+    fomv = ForecastingOnMapVisualizer(dataset_dir=args.dataset_dir,
+                                      convert_tf_record=True,
+                                      overwrite_rendered_file=args.overwrite_rendered_file)
+
+    if not Path(f"{args.dataset_dir}../tf_record").exists():
+        os.makedirs(f"{args.dataset_dir}../tf_record")
+
+    for i in range(fomv.num):
+        if (i+1) % 64 == 0:
+            print(f"Processing {i}th frame")
+        if i % FRAME_IN_SHARD == 0:
+            shard_ind = ceil(i / FRAME_IN_SHARD)
+            writer = tf.io.TFRecordWriter(f"{args.dataset_dir}/../tf_record/{shard_ind}_tf_record")
+        past_traj, future_traj = fomv.plot_log_one_at_a_time(avm, log_num=i)
+        example = convert_to_example(past_traj, future_traj)
+        writer.write(example.SerializeToString())
+
+        if (i-shard_ind*FRAME_IN_SHARD) % (FRAME_IN_SHARD-1) == 0 and (not i == shard_ind*FRAME_IN_SHARD):
+            print(f"the {shard_ind}th shard has been done!")
+            writer.close()
 
 
 def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset_dir", type=str, help="path to where the logs live",
-                        default="../../data/argo/forecasting/sample1/data/")
-    parser.add_argument("--save_image", help="save rendered image or not",
+                        default="../../data/argo/forecasting/train/data/")
+    parser.add_argument("--convert_tf_record", help="convert to tfrecord file or not",
                         default=True)
+    parser.add_argument("--save_image", help="save rendered image or not",
+                        default=False)
+    parser.add_argument("--overwrite_rendered_file", help="overwrite the rendered files or not",
+                        default=False)
 
     args = parser.parse_args()
     logger.info(args)
-    visualize_forecating_data_on_map(args)
+
+    if args.convert_tf_record:
+        write_tf_record(args)
+    else:
+        visualize_forecating_data_on_map(args)
 
 
 if __name__ == '__main__':
