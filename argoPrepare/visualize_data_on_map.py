@@ -316,6 +316,7 @@ class DatasetOnMapVisualizer:
         # axes.scatter(traj[:, 0].tolist(), traj[:, 1].tolist(), s=5, c='g')
         return traj
 
+
 def visualize_30hz_benchmark_data_on_map(args: Any) -> None:
     """
     """

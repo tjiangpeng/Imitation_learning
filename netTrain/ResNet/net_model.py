@@ -342,12 +342,12 @@ def ResNet(stack_fn,
         x = keras.layers.BatchNormalization(axis=bn_axis, epsilon=1.001e-5,
                                             name='post_bn')(x)
         # x = keras.layers.Activation('relu', name='post_relu')(x)
-        x = keras.layers.LeakyReLU(alpha=0.1)(x)
+        # x = keras.layers.LeakyReLU(alpha=0.1)(x)
 
     if include_top:
         x = keras.layers.GlobalAveragePooling2D(name='avg_pool')(x)
         x = keras.layers.Dense(classes, activation='linear', name='traj')(x)
-        x = keras.layers.LeakyReLU(alpha=0.1)(x)
+        # x = keras.layers.LeakyReLU(alpha=0.1)(x)
     else:
         if pooling == 'avg':
             x = keras.layers.GlobalAveragePooling2D(name='avg_pool')(x)

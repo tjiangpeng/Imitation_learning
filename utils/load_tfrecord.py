@@ -121,7 +121,7 @@ def parse_record(raw_record):
     image = image / 255.0
     # image = image - tf.convert_to_tensor(IMAGE_MEAN_ARRAY, dtype=tf.float32)
 
-    traj = tf.decode_raw(traj_buffer, tf.float64)
+    traj = tf.decode_raw(traj_buffer, tf.int64)
     traj = tf.cast(traj, tf.float32)
     traj = tf.reshape(traj, shape=[NUM_TIME_SEQUENCE*2, ])
     # normailize traj
