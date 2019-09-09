@@ -73,12 +73,14 @@ def _parse_example_proto(example_serialized):
         #                                      default_value=''),
         'image/encoded': tf.FixedLenFeature([], dtype=tf.string,
                                             default_value=''),
-        'trajectory': tf.FixedLenFeature([], dtype=tf.string,
-                                         default_value=''),
+        'past_traj': tf.FixedLenFeature([], dtype=tf.string,
+                                        default_value=''),
+        'future_traj': tf.FixedLenFeature([], dtype=tf.string,
+                                          default_value=''),
     }
 
     features = tf.parse_single_example(example_serialized, feature_map)
-    return features['image/encoded'], features['trajectory']
+    return features['image/encoded'], features['past_traj'], features['future_traj']
 
 
 def parse_record(raw_record):
@@ -96,7 +98,7 @@ def parse_record(raw_record):
     Returns:
     Tuple with processed image tensor and one-hot-encoded label tensor.
     """
-    image_buffer, traj_buffer = _parse_example_proto(raw_record)
+    image_buffer, past_traj_buffer, future_traj_buffer = _parse_example_proto(raw_record)
 
     # image = tf.decode_raw(image_buffer, tf.uint8)
     # image = tf.reshape(image, shape=[IMAGE_HEIGHT, IMAGE_WIDTH, NUM_CHANNELS])
@@ -108,13 +110,15 @@ def parse_record(raw_record):
     image = image / 255.0
     # image = image - tf.convert_to_tensor(IMAGE_MEAN_ARRAY, dtype=tf.float32)
 
-    traj = tf.decode_raw(traj_buffer, tf.float64)
-    traj = tf.cast(traj, tf.float32)
-    traj = tf.reshape(traj, shape=[NUM_TIME_SEQUENCE*2, ])
-    # normailize traj
-    # traj = traj / IMAGE_WIDTH
+    past_traj = tf.decode_raw(past_traj_buffer, tf.float64)
+    past_traj = tf.cast(past_traj, tf.float32)
+    past_traj = tf.reshape(past_traj, shape=[PAST_TIME_STEP*2, ])
 
-    return image, traj
+    future_traj = tf.decode_raw(future_traj_buffer, tf.float64)
+    future_traj = tf.cast(future_traj, tf.float32)
+    future_traj = tf.reshape(future_traj, shape=[NUM_TIME_SEQUENCE*2, ])
+
+    return image, past_traj, future_traj
 
 
 def input_fn(is_training, data_dir, batch_size, num_epochs=1,

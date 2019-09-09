@@ -36,16 +36,17 @@ def _bytes_feature(value):
   return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
 
 
-def convert_to_example(traj):
+def convert_to_example(past_traj, future_traj):
     """Build an Example proto for an example"""
-    img = cv2.imread('temp.png')
-    cv2.imshow('img', img)
-    cv2.waitKey(1)
+    # img = cv2.imread('temp.png')
+    # cv2.imshow('img', img)
+    # cv2.waitKey(1)
 
     img_bytes = open('temp.png', 'rb').read()
     example = tf.train.Example(features=tf.train.Features(feature={
         'image/encoded': _bytes_feature(img_bytes),
-        'trajectory': _bytes_feature(traj.tostring())
+        'past_traj': _bytes_feature(past_traj.tostring()),
+        'future_traj': _bytes_feature(future_traj.tostring())
     }))
 
     return example
