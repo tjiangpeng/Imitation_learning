@@ -35,14 +35,16 @@ def main():
             pos_gt[1] = pos_gt[1] * -1
             pos_gt = pos_gt + [IMAGE_WIDTH/2, IMAGE_HEIGHT/2]
             pos_gt = pos_gt.astype(np.int)
-            image[pos_gt[1]][pos_gt[0]] = (255, 255, 255)
+            if 0 <= pos_gt[0] < IMAGE_HEIGHT and 0 <= pos_gt[1] < IMAGE_HEIGHT:
+                image[pos_gt[1]][pos_gt[0]] = (255, 255, 255)
 
         for ind in range(NUM_TIME_SEQUENCE):
             pos_gt = ftraj[0][2 * ind:2 * ind + 2]
             pos_gt[1] = pos_gt[1] * -1
             pos_gt = pos_gt + [IMAGE_WIDTH/2, IMAGE_HEIGHT/2]
             pos_gt = pos_gt.astype(np.int)
-            image[pos_gt[1]][pos_gt[0]] = (255, 255, 255)
+            if 0 <= pos_gt[0] < IMAGE_HEIGHT and 0 <= pos_gt[1] < IMAGE_HEIGHT:
+                image[pos_gt[1]][pos_gt[0]] = (255, 255, 255)
 
         cv2.imshow('image', image)
         cv2.waitKey(1)
