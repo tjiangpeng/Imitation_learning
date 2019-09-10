@@ -14,7 +14,9 @@ def main():
     #             '../../data/argo/argoverse-tracking/train2_tf_record/',
     #             '../../data/argo/argoverse-tracking/train3_tf_record/',
     #             '../../data/argo/argoverse-tracking/train4_tf_record/']
+
     data_dir = ['../../data/argo/forecasting/train/tf_record/']
+
     dataset = input_fn(is_training=True, data_dir=data_dir, batch_size=1)
     iterator = dataset.make_one_shot_iterator()
     image_batch, past_traj_batch, future_traj_batch = iterator.get_next()
