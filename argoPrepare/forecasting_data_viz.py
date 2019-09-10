@@ -225,17 +225,18 @@ def write_tf_record(args: Any) -> None:
         if (i-shard_ind*FRAME_IN_SHARD) % (FRAME_IN_SHARD-1) == 0 and (not i == shard_ind*FRAME_IN_SHARD):
             print(f"the {shard_ind}th shard has been done!")
             writer.close()
+    writer.close()
 
 
 def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset_dir", type=str, help="path to where the logs live",
-                        default="../../data/argo/forecasting/train/data/")
+                        default="../../data/argo/forecasting/val/data/")
     parser.add_argument("--convert_tf_record", help="convert to tfrecord file or not",
-                        default=True)
+                        default=False)
     parser.add_argument("--starting_frame_ind", type=int, help="which frame to start",
-                        default=11264)
+                        default=39936)
     parser.add_argument("--save_image", help="save rendered image or not",
                         default=False)
     parser.add_argument("--overwrite_rendered_file", help="overwrite the rendered files or not",
