@@ -17,7 +17,7 @@ def main():
     keras.backend.clear_session()
     sess = tf.Session()
 
-    dataset = input_fn(is_training=False, data_dir=['../../../data/argo/forecasting/val/tf_record/'], batch_size=8)
+    dataset = input_fn(is_training=False, data_dir=['../../../data/argo/forecasting/val/tf_record/'], batch_size=16)
     iterator = dataset.make_one_shot_iterator()
     image_batch, traj_batch = iterator.get_next()
 
@@ -31,7 +31,7 @@ def main():
                   metrics=['mae', FDE_1S, FDE_3S, ADE_1S, ADE_3S])
 
     # Evaluate
-    scores = model.evaluate(dataset, verbose=1, steps=100)
+    scores = model.evaluate(dataset, verbose=1, steps=2500)
     print("%s: %.2f" % (model.metrics_names[1], scores[1]))
     print("%s: %.2f" % (model.metrics_names[2], scores[2]))
     print("%s: %.2f" % (model.metrics_names[3], scores[3]))
