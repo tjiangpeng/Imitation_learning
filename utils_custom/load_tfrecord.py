@@ -16,7 +16,7 @@ NUM_IMAGES = {
 _NUM_TRAIN_FILES = 4
 _NUM_VALIDATION_FILES = 1
 _SHUFFLE_BUFFER = 10000
-# IMAGE_MEAN_ARRAY = np.load("/home/shaojun/jiangpeng/CARLA/CARLA_0_9_6/PythonAPI/Imitation_learning/utils/image_mean.npy")
+# IMAGE_MEAN_ARRAY = np.load("/home/shaojun/jiangpeng/CARLA/CARLA_0_9_6/PythonAPI/Imitation_learning/utils_custom/image_mean.npy")
 ###############################################################################
 # Data processing
 ###############################################################################

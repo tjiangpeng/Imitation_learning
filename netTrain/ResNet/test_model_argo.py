@@ -5,28 +5,33 @@ from tensorflow import keras
 from argoPrepare.load_tfrecord_argo import input_fn
 from netTrain.ResNet.net_model import ResNet50V2
 from hparms import *
+from utils_custom.metrics import FDE_1S, FDE_3S, ADE_1S, ADE_3S
 
 
 def main():
     keras.backend.clear_session()
     sess = tf.Session()
 
-    dataset = input_fn(is_training=False, data_dir=['../../../data/argo/forecasting/val/tf_record/'], batch_size=1)
+    dataset = input_fn(is_training=False, data_dir=['../../../data/argo/forecasting/val/tf_record/'], batch_size=8)
     iterator = dataset.make_one_shot_iterator()
     image_batch, traj_batch = iterator.get_next()
 
     # Model
-    model = ResNet50V2(include_top=True, weights='../../../logs/ResNet/checkpoints/20190910-112359weights042.h5',
+    model = ResNet50V2(include_top=True, weights='../../../logs/ResNet/checkpoints/20190911-083837weights018.h5',
                        input_shape=(IMAGE_WIDTH, IMAGE_HEIGHT, NUM_CHANNELS),
                        classes=NUM_TIME_SEQUENCE*2)
 
     model.compile(optimizer=keras.optimizers.Adam(),
                   loss='mse',
-                  metrics=['mae'])
+                  metrics=['mae', FDE_1S, FDE_3S, ADE_1S, ADE_3S])
 
     # Evaluate
-    # scores = model.evaluate(dataset, verbose=1, steps=10000)
-    # print("%s: %.2f" % (model.metrics_names[1], scores[1]))
+    scores = model.evaluate(dataset, verbose=1, steps=100)
+    print("%s: %.2f" % (model.metrics_names[1], scores[1]))
+    print("%s: %.2f" % (model.metrics_names[2], scores[2]))
+    print("%s: %.2f" % (model.metrics_names[3], scores[3]))
+    print("%s: %.2f" % (model.metrics_names[4], scores[4]))
+    print("%s: %.2f" % (model.metrics_names[5], scores[5]))
 
     # outVideo = cv2.VideoWriter('out.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 10, (101, 115))
     for i in range(10000):

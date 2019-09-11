@@ -5,7 +5,7 @@ import tensorflow as tf
 from tensorflow import keras
 from netTrain.ResNet.net_model import ResNet50V2
 from argoPrepare.load_tfrecord_argo import input_fn
-# from utils.load_tfrecord import input_fn
+# from utils_custom.load_tfrecord import input_fn
 from hparms import *
 
 NUM_EPOCHS = 40
