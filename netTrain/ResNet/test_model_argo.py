@@ -11,12 +11,12 @@ def main():
     keras.backend.clear_session()
     sess = tf.Session()
 
-    dataset = input_fn(is_training=False, data_dir=['../../../data/argo/argoverse-tracking/val_tf_record/'], batch_size=1)
+    dataset = input_fn(is_training=False, data_dir=['../../../data/argo/forecasting/val/tf_record/'], batch_size=1)
     iterator = dataset.make_one_shot_iterator()
     image_batch, traj_batch = iterator.get_next()
 
     # Model
-    model = ResNet50V2(include_top=True, weights='../../../logs/ResNet/checkpoints/20190906-133107weights012.h5',
+    model = ResNet50V2(include_top=True, weights='../../../logs/ResNet/checkpoints/20190910-112359weights042.h5',
                        input_shape=(IMAGE_WIDTH, IMAGE_HEIGHT, NUM_CHANNELS),
                        classes=NUM_TIME_SEQUENCE*2)
 
@@ -46,15 +46,17 @@ def main():
             pos_pred = y[0][2*ind:2*ind+2]
 
             pos_gt[1] = pos_gt[1] * -1
-            pos_gt = pos_gt + [IMAGE_WIDTH/4, IMAGE_HEIGHT/2]
+            pos_gt = pos_gt + [IMAGE_WIDTH/2, IMAGE_HEIGHT/2]
             pos_gt = pos_gt.astype(np.int)
 
             pos_pred[1] = pos_pred[1] * -1
-            pos_pred = pos_pred + [IMAGE_WIDTH/4, IMAGE_HEIGHT/2]
+            pos_pred = pos_pred + [IMAGE_WIDTH/2, IMAGE_HEIGHT/2]
             pos_pred = pos_pred.astype(np.int)
 
-            image[pos_gt[1]][pos_gt[0]] = (0, 0, 255)
-            image[pos_pred[1]][pos_pred[0]] = (255, 255, 255)
+            if 0 <= pos_gt[0] < IMAGE_HEIGHT and 0 <= pos_gt[1] < IMAGE_HEIGHT:
+                image[pos_gt[1]][pos_gt[0]] = (0, 0, 255)
+            if 0 <= pos_pred[0] < IMAGE_HEIGHT and 0 <= pos_pred[1] < IMAGE_HEIGHT:
+                image[pos_pred[1]][pos_pred[0]] = (255, 255, 255)
         cv2.imshow('image', image)
 
         # outVideo.write(cropImg)

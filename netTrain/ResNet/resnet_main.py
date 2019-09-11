@@ -8,7 +8,7 @@ from argoPrepare.load_tfrecord_argo import input_fn
 # from utils.load_tfrecord import input_fn
 from hparms import *
 
-NUM_EPOCHS = 75
+NUM_EPOCHS = 40
 
 
 def lr_schedule(epoch):
@@ -23,14 +23,14 @@ def lr_schedule(epoch):
     # Returns
         lr (float32): learning rate
     """
-    lr = 1e-3
-    if epoch > 60:
+    lr = 1e-4
+    if epoch > 35:
         lr *= 0.5e-3
-    elif epoch > 45:
-        lr *= 1e-3
     elif epoch > 30:
+        lr *= 1e-3
+    elif epoch > 20:
         lr *= 1e-2
-    elif epoch > 15:
+    elif epoch > 10:
         lr *= 1e-1
     print('Learning rate: ', lr)
     return lr
@@ -84,14 +84,15 @@ def main():
     valid_dataset = input_fn(is_training=False, data_dir=data_dir, batch_size=16, num_epochs=NUM_EPOCHS)
     ####################################################################################################################
     # Model
-    model = ResNet50V2(include_top=True, weights=None, input_shape=(IMAGE_WIDTH, IMAGE_HEIGHT, NUM_CHANNELS),
+    model = ResNet50V2(include_top=True, weights='../../../logs/ResNet/checkpoints/20190910-112359weights042.h5',
+                       input_shape=(IMAGE_WIDTH, IMAGE_HEIGHT, NUM_CHANNELS),
                        classes=NUM_TIME_SEQUENCE*2)
 
     model.compile(optimizer=keras.optimizers.Adam(lr=lr_schedule(0)),
                   loss='mse',
                   metrics=['mae'])
 
-    history = model.fit(train_dataset, epochs=NUM_EPOCHS, steps_per_epoch=800, verbose=2, callbacks=callbacks,
+    history = model.fit(train_dataset, epochs=NUM_EPOCHS, steps_per_epoch=1600, verbose=2, callbacks=callbacks,
                         validation_data=valid_dataset, validation_steps=2505)  # 630
 
     with open(logdir + '/trainHistory.json', 'w') as f:
