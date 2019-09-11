@@ -1,3 +1,5 @@
+import os
+
 import cv2
 import tensorflow as tf
 import numpy as np
@@ -5,6 +7,9 @@ from tensorflow import keras
 from argoPrepare.load_tfrecord_argo import input_fn
 from netTrain.ResNet.net_model import ResNet50V2
 from hparms import *
+
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"  # specify which GPU(s) to be used
 
 
 def main():
@@ -16,7 +21,7 @@ def main():
     image_batch, traj_batch = iterator.get_next()
 
     # Model
-    model = ResNet50V2(include_top=True, weights='../../../logs/ResNet/checkpoints/20190910-112359weights042.h5',
+    model = ResNet50V2(include_top=True, weights='../../../logs/ResNet/checkpoints/20190911-083837weights018.h5',
                        input_shape=(IMAGE_WIDTH, IMAGE_HEIGHT, NUM_CHANNELS),
                        classes=NUM_TIME_SEQUENCE*2)
 
