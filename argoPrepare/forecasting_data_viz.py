@@ -236,7 +236,7 @@ def main():
     parser.add_argument("--convert_tf_record", help="convert to tfrecord file or not",
                         default=False)
     parser.add_argument("--starting_frame_ind", type=int, help="which frame to start",
-                        default=39936)
+                        default=97280)
     parser.add_argument("--save_image", help="save rendered image or not",
                         default=False)
     parser.add_argument("--overwrite_rendered_file", help="overwrite the rendered files or not",
