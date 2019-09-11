@@ -1,3 +1,5 @@
+import os
+
 import cv2
 import tensorflow as tf
 import numpy as np
@@ -6,6 +8,9 @@ from argoPrepare.load_tfrecord_argo import input_fn
 from netTrain.ResNet.net_model import ResNet50V2
 from hparms import *
 from utils_custom.metrics import FDE_1S, FDE_3S, ADE_1S, ADE_3S
+
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"  # specify which GPU(s) to be used
 
 
 def main():
