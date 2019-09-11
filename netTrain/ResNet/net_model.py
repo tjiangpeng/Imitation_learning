@@ -310,14 +310,6 @@ def ResNet(stack_fn,
         raise ValueError('If using `weights` as `"imagenet"` with `include_top`'
                          ' as true, `classes` should be 1000')
 
-    # Determine proper input shape
-    # input_shape = _obtain_input_shape(input_shape,
-    #                                   default_size=224,
-    #                                   min_size=32,
-    #                                   data_format=backend.image_data_format(),
-    #                                   require_flatten=include_top,
-    #                                   weights=weights)
-
     if input_tensor is None:
         img_input = keras.layers.Input(shape=input_shape)
     else:
@@ -342,7 +334,7 @@ def ResNet(stack_fn,
         x = keras.layers.BatchNormalization(axis=bn_axis, epsilon=1.001e-5,
                                             name='post_bn')(x)
         # x = keras.layers.Activation('relu', name='post_relu')(x)
-        # x = keras.layers.LeakyReLU(alpha=0.1)(x)
+        x = keras.layers.LeakyReLU(alpha=0.1, name='post_lrelu')(x)
 
     if include_top:
         x = keras.layers.GlobalAveragePooling2D(name='avg_pool')(x)
@@ -462,6 +454,30 @@ def ResNet50V2(include_top=True,
                   pooling, classes,
                   **kwargs)
 
+
+def ResNet50V2_fc(weights=None,
+                  input_tensor=None,
+                  input_shape=None,
+                  classes=1000,
+                  **kwargs):
+    def stack_fn(x):
+        x = stack2(x, 64, 3, name='conv2')
+        x = stack2(x, 128, 4, name='conv3')
+        x = stack2(x, 256, 6, name='conv4')
+        x = stack2(x, 512, 3, stride1=1, name='conv5')
+        return x
+
+    resnet_model = ResNet(stack_fn, True, True, 'resnet50v2_fc',
+                          False, None,
+                          input_tensor, input_shape,
+                          'avg', classes,
+                          **kwargs)
+
+    last_layer = resnet_model.get_layer('avg_pool').output
+    x = keras.layers.Dense()
+    x = keras.layers.Dense(classes, activation='linear', name='traj')(x)
+
+    pass
 
 # def ResNet101V2(include_top=True,
 #                 weights='imagenet',

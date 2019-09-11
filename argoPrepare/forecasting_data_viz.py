@@ -232,9 +232,9 @@ def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset_dir", type=str, help="path to where the logs live",
-                        default="../../data/argo/forecasting/train/data/")
+                        default="../../data/argo/forecasting/val/data/")
     parser.add_argument("--convert_tf_record", help="convert to tfrecord file or not",
-                        default=True)
+                        default=False)
     parser.add_argument("--starting_frame_ind", type=int, help="which frame to start",
                         default=97280)
     parser.add_argument("--save_image", help="save rendered image or not",

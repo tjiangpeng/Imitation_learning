@@ -1,13 +1,14 @@
 from datetime import datetime
 import json
 import numpy as np
+import tensorflow as tf
 from tensorflow import keras
 from netTrain.ResNet.net_model import ResNet50V2
 from argoPrepare.load_tfrecord_argo import input_fn
 # from utils.load_tfrecord import input_fn
 from hparms import *
 
-NUM_EPOCHS = 60
+NUM_EPOCHS = 75
 
 
 def lr_schedule(epoch):
@@ -23,16 +24,30 @@ def lr_schedule(epoch):
         lr (float32): learning rate
     """
     lr = 1e-3
-    if epoch > 40:
+    if epoch > 60:
         lr *= 0.5e-3
-    elif epoch > 30:
+    elif epoch > 45:
         lr *= 1e-3
-    elif epoch > 20:
+    elif epoch > 30:
         lr *= 1e-2
-    elif epoch > 10:
+    elif epoch > 15:
         lr *= 1e-1
     print('Learning rate: ', lr)
     return lr
+
+
+# def ADE(y_true, y_pred):
+#
+#     pass
+#
+#
+# def FDE(y_true, y_pred):
+#     print(tf.shape(y_true))
+#     print(tf.shape(y_pred))
+#
+#
+#     pass
+
 
 
 def main():
@@ -57,14 +72,15 @@ def main():
     # Dataset
     # data_dir = ['../../../data/2019_08_07/', '../../../data/2019_08_10/',
     #             '../../../data/2019_08_12/', '../../../data/2019_08_12_2/']
-    data_dir = ['../../../data/argo/argoverse-tracking/train1_tf_record/',
-                '../../../data/argo/argoverse-tracking/train2_tf_record/',
-                '../../../data/argo/argoverse-tracking/train3_tf_record/',
-                '../../../data/argo/argoverse-tracking/train4_tf_record/']
+    # data_dir = ['../../../data/argo/argoverse-tracking/train1_tf_record/',
+    #             '../../../data/argo/argoverse-tracking/train2_tf_record/',
+    #             '../../../data/argo/argoverse-tracking/train3_tf_record/',
+    #             '../../../data/argo/argoverse-tracking/train4_tf_record/']
+    data_dir = ['../../../data/argo/forecasting/train/tf_record/']
     train_dataset = input_fn(is_training=True, data_dir=data_dir, batch_size=16, num_epochs=NUM_EPOCHS)
 
     # data_dir = ['../../../data/2019_08_07/']#, '../../../data/2019_08_14/']
-    data_dir = ['../../../data/argo/argoverse-tracking/val_tf_record/']
+    data_dir = ['../../../data/argo/forecasting/val/tf_record/']
     valid_dataset = input_fn(is_training=False, data_dir=data_dir, batch_size=16, num_epochs=NUM_EPOCHS)
     ####################################################################################################################
     # Model
@@ -75,8 +91,8 @@ def main():
                   loss='mse',
                   metrics=['mae'])
 
-    history = model.fit(train_dataset, epochs=NUM_EPOCHS, steps_per_epoch=674, verbose=2, callbacks=callbacks,
-                        validation_data=valid_dataset, validation_steps=240)  # 630
+    history = model.fit(train_dataset, epochs=NUM_EPOCHS, steps_per_epoch=800, verbose=2, callbacks=callbacks,
+                        validation_data=valid_dataset, validation_steps=2505)  # 630
 
     with open(logdir + '/trainHistory.json', 'w') as f:
         history.history['lr'] = [float(i) for i in (history.history['lr'])]
