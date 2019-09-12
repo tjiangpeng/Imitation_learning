@@ -125,6 +125,16 @@ Comparison
 | ResNet-50-v2 | 0.5587   | 1.2561     | 1.14 (=0.228 m) |
 | MobileNet-v2 | 0.6988   | 1.6717     | 1.42 (=0.284 m) |
 
+## Evaluation on argoverse validation dataset
+
+|                            | ADE (1s) | FDE (1s) | ADE (3s) | FDE (3s) |
+| -------------------------- | -------- | -------- | -------- | -------- |
+| image + Resnet -> traj pos | 0.73     | 1.22     | 2.14     | 4.65     |
+|                            |          |          |          |          |
+|                            |          |          |          |          |
+
+
+
 # Requirement
 
 > Python 3.6
