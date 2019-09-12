@@ -129,8 +129,8 @@ Comparison
 
 |                            | ADE (1s) | FDE (1s) | ADE (3s) | FDE (3s) |
 | -------------------------- | -------- | -------- | -------- | -------- |
+| Benchmark [4]              | 0.68     | 1.20     | 2.25     | 4.67     |
 | image + Resnet -> traj pos | 0.73     | 1.22     | 2.14     | 4.65     |
-|                            |          |          |          |          |
 |                            |          |          |          |          |
 
 
@@ -176,3 +176,5 @@ Loss is to minimize the negative log-likelihood of the ground truth future locat
 [2] Amini, A., Rosman, G., Karaman, S. and Rus, D., 2019, May. Variational end-to-end navigation and localization. In *2019 International Conference on Robotics and Automation (ICRA)*(pp. 8958-8964). IEEE.
 
 [3] Hong, J., Sapp, B. and Philbin, J., 2019. Rules of the Road: Predicting Driving Behavior with a Convolutional Model of Semantic Interactions. In *Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition* (pp. 8454-8462).
+
+[4] Argoverse: 3D Tracking and Forecasting with Rich Maps 
