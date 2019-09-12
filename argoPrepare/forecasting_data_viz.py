@@ -141,10 +141,10 @@ class ForecastingOnMapVisualizer:
 
         # render color with decreasing lightness
         color_lightness = np.linspace(1, 0, SURR_TIME_STEP+2)[1:].tolist()
-        marker_size = 2
+        marker_size = 10
         for idx, group in enumerate(which_groups):
             if idx == SURR_TIME_STEP:
-                marker_size = 10
+                marker_size = 20
             for i in range(group.shape[0]):
                 if not group[i, 1] == 'AGENT':
                 # if group[i, 1] == 'OTHERS':
@@ -163,7 +163,7 @@ class ForecastingOnMapVisualizer:
         ax: Axes,
         cur_time: int
     ):
-        marker_size = 2
+        marker_size = 10
         color_lightness = np.linspace(1, 0, AGENT_TIME_STEP + 1)[1:].tolist()
         for i in range(cur_time-AGENT_TIME_STEP, cur_time+1):
             if i == cur_time:
@@ -232,13 +232,13 @@ def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset_dir", type=str, help="path to where the logs live",
-                        default="../../data/argo/forecasting/val/data/")
+                        default="../../data/argo/forecasting/sample/data/")
     parser.add_argument("--convert_tf_record", help="convert to tfrecord file or not",
                         default=False)
     parser.add_argument("--starting_frame_ind", type=int, help="which frame to start",
                         default=97280)
     parser.add_argument("--save_image", help="save rendered image or not",
-                        default=False)
+                        default=True)
     parser.add_argument("--overwrite_rendered_file", help="overwrite the rendered files or not",
                         default=False)
 
