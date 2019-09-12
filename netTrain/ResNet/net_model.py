@@ -456,8 +456,9 @@ def ResNet50V2(include_top=True,
 
 
 def ResNet50V2_fc(weights=None,
-                  input_tensor=None,
-                  input_shape=None,
+                  input_img_shape=None,
+                  input_ptraj_shape=None,
+                  node_num=4096,
                   classes=1000,
                   **kwargs):
     def stack_fn(x):
@@ -469,15 +470,22 @@ def ResNet50V2_fc(weights=None,
 
     resnet_model = ResNet(stack_fn, True, True, 'resnet50v2_fc',
                           False, None,
-                          input_tensor, input_shape,
+                          None, input_img_shape,
                           'avg', classes,
                           **kwargs)
 
     last_layer = resnet_model.get_layer('avg_pool').output
-    x = keras.layers.Dense()
-    x = keras.layers.Dense(classes, activation='linear', name='traj')(x)
 
-    pass
+    input_ptraj = keras.layers.Input(shape=input_ptraj_shape)
+    combined = keras.layers.concatenate([last_layer, input_ptraj])
+    x = keras.layers.Dense(node_num, activation='linear', name='fc1')(combined)
+    x = keras.layers.LeakyReLU(alpha=0.1, name='fc1_lrelu')(x)
+    out = keras.layers.Dense(classes, activation='linear', name='traj')(x)
+
+    model = keras.Model(inputs=[resnet_model.input, input_ptraj], outputs=out)
+
+    if weights is not None:
+        model.load_weights(weights)
 
 # def ResNet101V2(include_top=True,
 #                 weights='imagenet',
