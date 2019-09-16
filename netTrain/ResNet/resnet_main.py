@@ -3,12 +3,13 @@ import json
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
-from netTrain.ResNet.net_model import ResNet50V2
+from netTrain.ResNet.net_model import ResNet50V2, ResNet50V2_fc
 from argoPrepare.load_tfrecord_argo import input_fn
 # from utils_custom.load_tfrecord import input_fn
+from utils_custom.metrics import ADE_1S, FDE_1S, ADE_3S, FDE_3S
 from hparms import *
 
-NUM_EPOCHS = 40
+NUM_EPOCHS = 60
 
 
 def lr_schedule(epoch):
@@ -23,8 +24,8 @@ def lr_schedule(epoch):
     # Returns
         lr (float32): learning rate
     """
-    lr = 1e-4
-    if epoch > 35:
+    lr = 1e-3
+    if epoch > 40:
         lr *= 0.5e-3
     elif epoch > 30:
         lr *= 1e-3
@@ -34,20 +35,6 @@ def lr_schedule(epoch):
         lr *= 1e-1
     print('Learning rate: ', lr)
     return lr
-
-
-# def ADE(y_true, y_pred):
-#
-#     pass
-#
-#
-# def FDE(y_true, y_pred):
-#     print(tf.shape(y_true))
-#     print(tf.shape(y_pred))
-#
-#
-#     pass
-
 
 
 def main():
@@ -63,10 +50,11 @@ def main():
                                                           save_weights_only=True)
 
     lr_scheduler = keras.callbacks.LearningRateScheduler(lr_schedule)
-    lr_reducer = keras.callbacks.ReduceLROnPlateau(monitor='mean_absolute_error', factor=np.sqrt(0.1), cooldown=0,
+    lr_reducer = keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=np.sqrt(0.1), cooldown=0,
                                                    patience=5, min_lr=0.5e-6)
 
     callbacks = [tensorboard_callback, checkpoint_callback, lr_reducer, lr_scheduler]
+    # callbacks = [lr_reducer, lr_scheduler]
 
     ####################################################################################################################
     # Dataset
@@ -84,15 +72,20 @@ def main():
     valid_dataset = input_fn(is_training=False, data_dir=data_dir, batch_size=16, num_epochs=NUM_EPOCHS)
     ####################################################################################################################
     # Model
-    model = ResNet50V2(include_top=True, weights='../../../logs/ResNet/checkpoints/20190910-112359weights042.h5',
-                       input_shape=(IMAGE_WIDTH, IMAGE_HEIGHT, NUM_CHANNELS),
-                       classes=NUM_TIME_SEQUENCE*2)
+    # model = ResNet50V2(include_top=True, weights='../../../logs/ResNet/checkpoints/20190910-112359weights042.h5',
+    #                    input_shape=(IMAGE_WIDTH, IMAGE_HEIGHT, NUM_CHANNELS),
+    #                    classes=NUM_TIME_SEQUENCE*2)
+    model = ResNet50V2_fc(weights=None,
+                          input_img_shape=(IMAGE_WIDTH, IMAGE_HEIGHT, NUM_CHANNELS),
+                          input_ptraj_shape=(PAST_TIME_STEP*2, ),
+                          node_num=2048,
+                          classes=NUM_TIME_SEQUENCE*2)
 
     model.compile(optimizer=keras.optimizers.Adam(lr=lr_schedule(0)),
                   loss='mse',
-                  metrics=['mae'])
+                  metrics=[ADE_3S, FDE_3S])
 
-    history = model.fit(train_dataset, epochs=NUM_EPOCHS, steps_per_epoch=1600, verbose=2, callbacks=callbacks,
+    history = model.fit(train_dataset, epochs=NUM_EPOCHS, steps_per_epoch=800, verbose=2, callbacks=callbacks,
                         validation_data=valid_dataset, validation_steps=2505)  # 630
 
     with open(logdir + '/trainHistory.json', 'w') as f:

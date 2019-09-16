@@ -487,6 +487,8 @@ def ResNet50V2_fc(weights=None,
     if weights is not None:
         model.load_weights(weights)
 
+    return model
+
 # def ResNet101V2(include_top=True,
 #                 weights='imagenet',
 #                 input_tensor=None,
