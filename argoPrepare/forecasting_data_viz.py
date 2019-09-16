@@ -20,6 +20,9 @@ import tensorflow as tf
 
 from argoPrepare.tfrecord_processing import convert_to_example
 
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2,3,4"
+
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
@@ -44,6 +47,7 @@ class ForecastingOnMapVisualizer:
     ) -> None:
 
         self.dataset_dir = dataset_dir
+        print("Load data...")
         self.afl = ArgoverseForecastingLoader(dataset_dir)
         self.num = len(self.afl)
         self.log_agent_pose = None
@@ -217,6 +221,7 @@ class ForecastingOnMapVisualizer:
 
 
 def visualize_forecating_data_on_map(args: Any) -> None:
+    print("Loading map...")
     avm = ArgoverseMap()
     fomv = ForecastingOnMapVisualizer(dataset_dir=args.dataset_dir,
                                       save_img=args.save_image,
@@ -227,6 +232,7 @@ def visualize_forecating_data_on_map(args: Any) -> None:
 
 
 def write_tf_record(args: Any) -> None:
+    print("Loading map...")
     avm = ArgoverseMap()
     fomv = ForecastingOnMapVisualizer(dataset_dir=args.dataset_dir,
                                       convert_tf_record=True,
@@ -235,11 +241,13 @@ def write_tf_record(args: Any) -> None:
     if not Path(f"{args.dataset_dir}../tf_record").exists():
         os.makedirs(f"{args.dataset_dir}../tf_record")
 
-    for i in range(args.starting_frame_ind, fomv.num):
+    print("Start rendering...")
+    # for i in range(args.starting_frame_ind, fomv.num):
+    for i in range(9216, 51200):
         if (i+1) % 64 == 0:
             print(f"Processing {i}th frame")
         if i % FRAME_IN_SHARD == 0:
-            shard_ind = ceil(i / FRAME_IN_SHARD)
+            shard_ind = int(i / FRAME_IN_SHARD)
             writer = tf.io.TFRecordWriter(f"{args.dataset_dir}/../tf_record/{shard_ind}_tf_record")
 
         past_traj, future_traj = fomv.plot_log_one_at_a_time(avm, log_num=i)

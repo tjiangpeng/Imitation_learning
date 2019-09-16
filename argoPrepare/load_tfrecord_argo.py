@@ -118,7 +118,7 @@ def parse_record(raw_record):
     future_traj = tf.cast(future_traj, tf.float32)
     future_traj = tf.reshape(future_traj, shape=[NUM_TIME_SEQUENCE*2, ])
 
-    return image, future_traj
+    return image, past_traj, future_traj
 
 
 def input_fn(is_training, data_dir, batch_size, num_epochs=1,
