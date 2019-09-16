@@ -6,7 +6,7 @@ import os
 from typing import Any
 import pandas as pd
 from pathlib import Path
-from math import ceil
+from math import ceil, sqrt
 
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
@@ -55,6 +55,8 @@ class ForecastingOnMapVisualizer:
         self.convert_tf_record = convert_tf_record
         self.overwrite_rendered_file = overwrite_rendered_file
         self.save_img = save_img
+        # self.plot_lane_tangent_arrows = plot_lane_tangent_arrows
+
         if save_img:
             if not Path(f"{self.dataset_dir}../rendered_image").exists():
                 os.makedirs(f"{self.dataset_dir}../rendered_image")
@@ -105,12 +107,15 @@ class ForecastingOnMapVisualizer:
             draw_lane_polygons(ax, local_lane_polygons, color="tab:gray")
             draw_lane_polygons(ax, local_das, color=(1, 0, 1))
 
-            self.render_surr_past_traj(ax, df, i)
+            # Render
+            self.render_surr_past_traj(ax, df, i, avm, city_name)
             past_traj = self.render_agent_past_traj(ax, i)
+            self.render_candidate_centerlines(ax, self.log_agent_pose[:(AGENT_TIME_STEP+1)], avm, city_name)
 
             fig.tight_layout()
             if self.save_img:
                 self.get_future_traj(ax, i, True)
+                shard_ind = 1
                 plt.savefig(
                     f"{self.dataset_dir}../rendered_image/{shard_ind}/{img_name}",
                     dpi=100, facecolor='k', bbox_inches='tight', pad_inches=0
@@ -125,7 +130,9 @@ class ForecastingOnMapVisualizer:
         self,
         ax: Axes,
         df: pd.DataFrame,
-        cur_time: int
+        cur_time: int,
+        avm=None,
+        city_name: str = None
     ) -> None:
         which_timestamps = self.timestamps[cur_time-SURR_TIME_STEP:cur_time+1]
 
@@ -143,8 +150,6 @@ class ForecastingOnMapVisualizer:
         color_lightness = np.linspace(1, 0, SURR_TIME_STEP+2)[1:].tolist()
         marker_size = 10
         for idx, group in enumerate(which_groups):
-            if idx == SURR_TIME_STEP:
-                marker_size = 20
             for i in range(group.shape[0]):
                 if not group[i, 1] == 'AGENT':
                 # if group[i, 1] == 'OTHERS':
@@ -156,7 +161,15 @@ class ForecastingOnMapVisualizer:
                 if group[i, 0] in track_ids:
                     x = group[i, 2]
                     y = group[i, 3]
-                    ax.scatter(x, y, s=marker_size, c=c, alpha=1)
+                    if idx == SURR_TIME_STEP:
+                        marker_size = 20
+                        # Render lane tangent arrows
+                        # tangent_xy, conf = avm.get_lane_direction(
+                        #     query_xy_city_coords=np.array([x, y]), city_name=city_name
+                        # )
+                        # tangent_xy = tangent_xy / sqrt(tangent_xy[0]**2+tangent_xy[1]**2)
+                        # ax.arrow(x, y, tangent_xy[0]*2, tangent_xy[1]*2, color="r", width=0.4)
+                    ax.scatter(x, y, s=marker_size, c=c, alpha=1, zorder=2)
 
     def render_agent_past_traj(
         self,
@@ -173,10 +186,21 @@ class ForecastingOnMapVisualizer:
                 color = [(color_lightness[i], color_lightness[i], 1)]
             x = self.log_agent_pose[i, 0]
             y = self.log_agent_pose[i, 1]
-            ax.scatter(x, y, s=marker_size, c=color, alpha=1, zorder=2)
+            ax.scatter(x, y, s=marker_size, c=color, alpha=1, zorder=4)
 
         past_traj = self.log_agent_pose[cur_time-AGENT_TIME_STEP:cur_time, :] - self.log_agent_pose[cur_time, :]
         return past_traj
+
+    def render_candidate_centerlines(
+        self,
+        ax: Axes,
+        agent_obs_traj: np.ndarray,
+        avm,
+        city_name: str,
+    ):
+        candidate_centerlines = avm.get_candidate_centerlines_for_traj(agent_obs_traj, city_name)
+        for centerline in candidate_centerlines:
+            ax.plot(centerline[:, 0].tolist(), centerline[:, 1].tolist(), "-", color="w", zorder=3)
 
     def get_future_traj(
         self,
@@ -232,15 +256,15 @@ def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset_dir", type=str, help="path to where the logs live",
-                        default="../../data/argo/forecasting/sample/data/")
+                        default="../../data/argo/forecasting/train/data/")
     parser.add_argument("--convert_tf_record", help="convert to tfrecord file or not",
-                        default=False)
-    parser.add_argument("--starting_frame_ind", type=int, help="which frame to start",
-                        default=97280)
-    parser.add_argument("--save_image", help="save rendered image or not",
                         default=True)
-    parser.add_argument("--overwrite_rendered_file", help="overwrite the rendered files or not",
+    parser.add_argument("--starting_frame_ind", type=int, help="which frame to start",
+                        default=0)
+    parser.add_argument("--save_image", help="save rendered image or not",
                         default=False)
+    parser.add_argument("--overwrite_rendered_file", help="overwrite the rendered files or not",
+                        default=True)
 
     args = parser.parse_args()
     logger.info(args)
