@@ -119,6 +119,7 @@ def parse_record(raw_record):
     future_traj = tf.reshape(future_traj, shape=[NUM_TIME_SEQUENCE*2, ])
 
     return {"input_1": image, "input_2": past_traj}, future_traj
+    # return image, future_traj
 
 
 def input_fn(is_training, data_dir, batch_size, num_epochs=1,

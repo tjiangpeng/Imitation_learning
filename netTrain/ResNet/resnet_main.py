@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 import json
 import numpy as np
@@ -9,7 +10,10 @@ from argoPrepare.load_tfrecord_argo import input_fn
 from utils_custom.metrics import ADE_1S, FDE_1S, ADE_3S, FDE_3S
 from hparms import *
 
-NUM_EPOCHS = 60
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"  # specify which GPU(s) to be used
+
+NUM_EPOCHS = 40
 
 
 def lr_schedule(epoch):
@@ -25,9 +29,9 @@ def lr_schedule(epoch):
         lr (float32): learning rate
     """
     lr = 1e-3
-    if epoch > 40:
+    if epoch > 30:
         lr *= 0.5e-3
-    elif epoch > 30:
+    elif epoch > 25:
         lr *= 1e-3
     elif epoch > 20:
         lr *= 1e-2
@@ -65,28 +69,31 @@ def main():
     #             '../../../data/argo/argoverse-tracking/train3_tf_record/',
     #             '../../../data/argo/argoverse-tracking/train4_tf_record/']
     data_dir = ['../../../data/argo/forecasting/train/tf_record/']
-    train_dataset = input_fn(is_training=True, data_dir=data_dir, batch_size=16, num_epochs=NUM_EPOCHS)
+    train_dataset = input_fn(is_training=True, data_dir=data_dir, batch_size=32, num_epochs=NUM_EPOCHS)
 
     # data_dir = ['../../../data/2019_08_07/']#, '../../../data/2019_08_14/']
     data_dir = ['../../../data/argo/forecasting/val/tf_record/']
-    valid_dataset = input_fn(is_training=False, data_dir=data_dir, batch_size=16, num_epochs=NUM_EPOCHS)
+    valid_dataset = input_fn(is_training=False, data_dir=data_dir, batch_size=32, num_epochs=NUM_EPOCHS)
     ####################################################################################################################
     # Model
-    # model = ResNet50V2(include_top=True, weights='../../../logs/ResNet/checkpoints/20190910-112359weights042.h5',
-    #                    input_shape=(IMAGE_WIDTH, IMAGE_HEIGHT, NUM_CHANNELS),
-    #                    classes=NUM_TIME_SEQUENCE*2)
-    model = ResNet50V2_fc(weights=None,
-                          input_img_shape=(IMAGE_WIDTH, IMAGE_HEIGHT, NUM_CHANNELS),
-                          input_ptraj_shape=(PAST_TIME_STEP*2, ),
-                          node_num=2048,
-                          classes=NUM_TIME_SEQUENCE*2)
+    model = ResNet50V2(include_top=True, weights=None,
+                       input_shape=(IMAGE_WIDTH, IMAGE_HEIGHT, NUM_CHANNELS),
+                       classes=NUM_TIME_SEQUENCE*2)
+    # model = ResNet50V2_fc(weights=None,
+    #                       input_img_shape=(IMAGE_WIDTH, IMAGE_HEIGHT, NUM_CHANNELS),
+    #                       input_ptraj_shape=(PAST_TIME_STEP*2, ),
+    #                       node_num=2048,
+    #                       classes=NUM_TIME_SEQUENCE*2)
+
+    model = keras.utils.multi_gpu_model(model, gpus=4)
+    model.load_weights('../../../logs/ResNet/checkpoints/20190919-101758weights009.h5')
 
     model.compile(optimizer=keras.optimizers.Adam(lr=lr_schedule(0)),
                   loss='mse',
-                  metrics=[ADE_3S, FDE_3S])
+                  metrics=[ADE_1S, FDE_1S, ADE_3S, FDE_3S])
 
     history = model.fit(train_dataset, epochs=NUM_EPOCHS, steps_per_epoch=800, verbose=2, callbacks=callbacks,
-                        validation_data=valid_dataset, validation_steps=2505)  # 630
+                        validation_data=valid_dataset, validation_steps=1253)  # 40127
 
     with open(logdir + '/trainHistory.json', 'w') as f:
         history.history['lr'] = [float(i) for i in (history.history['lr'])]

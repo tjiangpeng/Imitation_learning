@@ -18,32 +18,19 @@
 """
 
 import os
+import tensorflow as tf
+import numpy as np
 from tensorflow import keras
+from hparms import *
 
 lrelu = lambda x: keras.activations.relu(x, alpha=0.1)
 
-BASE_WEIGHTS_PATH = (
-    'https://github.com/keras-team/keras-applications/'
-    'releases/download/resnet/')
-WEIGHTS_HASHES = {
-    'resnet50': ('2cb95161c43110f7111970584f804107',
-                 '4d473c1dd8becc155b73f8504c6f6626'),
-    'resnet101': ('f1aeb4b969a6efcfb50fad2f0c20cfc5',
-                  '88cf7a10940856eca736dc7b7e228a21'),
-    'resnet152': ('100835be76be38e30d865e96f2aaae62',
-                  'ee4c566cf9a93f14d82f913c2dc6dd0c'),
-    'resnet50v2': ('3ef43a0b657b3be2300d5770ece849e0',
-                   'fac2f116257151a9d068a22e544a4917'),
-    'resnet101v2': ('6343647c601c52e1368623803854d971',
-                    'c0ed64b8031c3730f411d2eb4eea35b5'),
-    'resnet152v2': ('a49b44d1979771252814e80f8ec446f9',
-                    'ed17cf2e0169df9d443503ef94b23b33'),
-    'resnext50': ('67a5b30d522ed92f75a1f16eef299d1a',
-                  '62527c363bdd9ec598bed41947b379fc'),
-    'resnext101': ('34fb605428fcc7aa4d62f44404c11509',
-                   '0f678c91647380debd923963594981b3')
-}
 
+def img_cord_to_real(x):
+    x = x * tf.constant(np.tile([1.0, -1.0], NUM_TIME_SEQUENCE), dtype=tf.float32) * 0.2
+    x = x + tf.constant(np.tile([-0.1 * IMAGE_WIDTH, 0.1 * IMAGE_HEIGHT], NUM_TIME_SEQUENCE), dtype=tf.float32)
+    x = keras.activations.linear(x)
+    return x
 
 # def block1(x, filters, kernel_size=3, stride=1,
 #            conv_shortcut=True, name=None):
@@ -297,18 +284,6 @@ def ResNet(stack_fn,
         ValueError: in case of invalid argument for `weights`,
             or invalid input shape.
     """
-    # global backend, layers, models, keras_utils
-    # backend, layers, models, keras_utils = get_submodules_from_kwargs(kwargs)
-
-    if not (weights in {'imagenet', None} or os.path.exists(weights)):
-        raise ValueError('The `weights` argument should be either '
-                         '`None` (random initialization), `imagenet` '
-                         '(pre-training on ImageNet), '
-                         'or the path to the weights file to be loaded.')
-
-    if weights == 'imagenet' and include_top and classes != 1000:
-        raise ValueError('If using `weights` as `"imagenet"` with `include_top`'
-                         ' as true, `classes` should be 1000')
 
     if input_tensor is None:
         img_input = keras.layers.Input(shape=input_shape)
@@ -338,7 +313,12 @@ def ResNet(stack_fn,
 
     if include_top:
         x = keras.layers.GlobalAveragePooling2D(name='avg_pool')(x)
+
         x = keras.layers.Dense(classes, activation='linear', name='traj')(x)
+        # x = keras.layers.LeakyReLU(alpha=0.1, name='img_cord')(x)
+
+        x = keras.layers.Lambda(img_cord_to_real)(x)
+
         # x = keras.layers.LeakyReLU(alpha=0.1)(x)
     else:
         if pooling == 'avg':
@@ -354,22 +334,12 @@ def ResNet(stack_fn,
         inputs = img_input
 
     # Create model.
-    model = keras.Model(inputs, x, name=model_name)
+    model = keras.Model(inputs=[inputs, keras.layers.Input(shape=(PAST_TIME_STEP*2, ))], outputs=x, name=model_name)
 
     # Load weights.
-    if (weights == 'imagenet') and (model_name in WEIGHTS_HASHES):
-        if include_top:
-            file_name = model_name + '_weights_tf_dim_ordering_tf_kernels.h5'
-            file_hash = WEIGHTS_HASHES[model_name][0]
-        else:
-            file_name = model_name + '_weights_tf_dim_ordering_tf_kernels_notop.h5'
-            file_hash = WEIGHTS_HASHES[model_name][1]
-        weights_path = keras.utils.get_file(file_name,
-                                            BASE_WEIGHTS_PATH + file_name,
-                                            cache_subdir='models',
-                                            file_hash=file_hash)
-        model.load_weights(weights_path)
-    elif weights is not None:
+    if weights is not None:
+        if not os.path.exists(weights):
+            raise ValueError("The weight to load doesn't exist!")
         model.load_weights(weights)
 
     return model
@@ -477,12 +447,14 @@ def ResNet50V2_fc(weights=None,
     last_layer = resnet_model.get_layer('avg_pool').output
 
     input_ptraj = keras.layers.Input(shape=input_ptraj_shape)
-    combined = keras.layers.concatenate([last_layer, input_ptraj])
+    input_ptraj_dropout = keras.layers.Dropout(rate=0.5)(input_ptraj)
+
+    combined = keras.layers.concatenate([last_layer, input_ptraj_dropout])
     x = keras.layers.Dense(node_num, activation='linear', name='fc1')(combined)
     x = keras.layers.LeakyReLU(alpha=0.1, name='fc1_lrelu')(x)
     out = keras.layers.Dense(classes, activation='linear', name='traj')(x)
 
-    model = keras.Model(inputs=[resnet_model.input, input_ptraj], outputs=out)
+    model = keras.Model(inputs=[resnet_model.input, input_ptraj], outputs=out, name='resentv2-fc')
 
     if weights is not None:
         model.load_weights(weights)

@@ -47,7 +47,7 @@ class ForecastingOnMapVisualizer:
     ) -> None:
 
         self.dataset_dir = dataset_dir
-        print("Load data...")
+        print("Loading data...")
         self.afl = ArgoverseForecastingLoader(dataset_dir)
         self.num = len(self.afl)
         self.log_agent_pose = None
@@ -238,17 +238,17 @@ def write_tf_record(args: Any) -> None:
                                       convert_tf_record=True,
                                       overwrite_rendered_file=args.overwrite_rendered_file)
 
-    if not Path(f"{args.dataset_dir}../tf_record").exists():
-        os.makedirs(f"{args.dataset_dir}../tf_record")
+    if not Path(f"{args.dataset_dir}../{args.prefix_tf_record}").exists():
+        os.makedirs(f"{args.dataset_dir}../{args.prefix_tf_record}")
 
     print("Start rendering...")
     # for i in range(args.starting_frame_ind, fomv.num):
-    for i in range(9216, 51200):
+    for i in range(91648, 102400):
         if (i+1) % 64 == 0:
             print(f"Processing {i}th frame")
         if i % FRAME_IN_SHARD == 0:
             shard_ind = int(i / FRAME_IN_SHARD)
-            writer = tf.io.TFRecordWriter(f"{args.dataset_dir}/../tf_record/{shard_ind}_tf_record")
+            writer = tf.io.TFRecordWriter(f"{args.dataset_dir}/../{args.prefix_tf_record}/{shard_ind}_tf_record")
 
         past_traj, future_traj = fomv.plot_log_one_at_a_time(avm, log_num=i)
         example = convert_to_example(past_traj, future_traj)
@@ -267,6 +267,8 @@ def main():
                         default="../../data/argo/forecasting/train/data/")
     parser.add_argument("--convert_tf_record", help="convert to tfrecord file or not",
                         default=True)
+    parser.add_argument("--prefix_tf_record", help="folder name to save tfrecord files",
+                        default="tf_record_1")
     parser.add_argument("--starting_frame_ind", type=int, help="which frame to start",
                         default=0)
     parser.add_argument("--save_image", help="save rendered image or not",
