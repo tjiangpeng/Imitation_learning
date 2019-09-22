@@ -24,12 +24,12 @@ def main():
     # Model
 #    model = ResNet50V2(include_top=True, weights='../../../logs/ResNet/checkpoints/20190911-083837weights018.h5',
 #                       input_shape=(IMAGE_WIDTH, IMAGE_HEIGHT, NUM_CHANNELS),
-#                       classes=NUM_TIME_SEQUENCE*2)
+#                       classes=FUTURE_TIME_STEP*2)
     model = ResNet50V2_fc(weights='../../../logs/ResNet/checkpoints/20190912-095604weights055.h5',
                           input_img_shape=(IMAGE_WIDTH, IMAGE_HEIGHT, NUM_CHANNELS),
                           input_ptraj_shape=(PAST_TIME_STEP*2, ),
                           node_num=2048,
-                          classes=NUM_TIME_SEQUENCE*2)
+                          classes=FUTURE_TIME_STEP*2)
 
     model.compile(optimizer=keras.optimizers.Adam(),
                   loss='mse',
@@ -56,7 +56,7 @@ def main():
 
         la[0] = la[0] / 0.2
         y[0] = y[0] / 0.2
-        for ind in range(NUM_TIME_SEQUENCE):
+        for ind in range(FUTURE_TIME_STEP):
             pos_gt = la[0][2*ind:2*ind+2]
             pos_pred = y[0][2*ind:2*ind+2]
 

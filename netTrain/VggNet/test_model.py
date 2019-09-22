@@ -18,7 +18,7 @@ def main():
     image_batch, traj_batch = iterator.get_next()
 
     # Model
-    model = VGG16_FL(num_node=NUM_HIDDEN_NODES, num_time_sequence=NUM_TIME_SEQUENCE,
+    model = VGG16_FL(num_node=NUM_HIDDEN_NODES, num_time_sequence=FUTURE_TIME_STEP,
                      weight='logs/checkpoints/20190815-171720weights0062.h5')
 
     model.compile(optimizer=keras.optimizers.Adam(),
@@ -43,7 +43,7 @@ def main():
 
         la[0] = la[0] + 0.5
         y[0] = y[0] + 0.5
-        for ind in range(NUM_TIME_SEQUENCE):
+        for ind in range(FUTURE_TIME_STEP):
             pos_gt = la[0][2*ind:2*ind+2].astype(np.int)
             pos_pred = y[0][2*ind:2*ind+2].astype(np.int)
 

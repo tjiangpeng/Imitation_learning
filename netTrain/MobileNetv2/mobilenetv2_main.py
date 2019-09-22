@@ -64,7 +64,7 @@ def main():
     ####################################################################################################################
     # Model
     model = MobileNetV2(input_shape=(IMAGE_WIDTH, IMAGE_HEIGHT, NUM_CHANNELS), alpha=1.0, include_top=True,
-                        weights=None, classes=NUM_TIME_SEQUENCE*2)
+                        weights=None, classes=FUTURE_TIME_STEP*2)
 
     model.compile(optimizer=keras.optimizers.Adam(lr=lr_schedule(0)),
                   loss='mse',

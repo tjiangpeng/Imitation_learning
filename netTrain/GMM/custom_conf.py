@@ -8,7 +8,7 @@ from argoPrepare.load_tfrecord_argo import input_fn
 from netTrain.GMM.net_model import ResNet50V2_gmm
 
 M = NUM_GAUSSIAN_COMPONENT
-T = NUM_TIME_SEQUENCE
+T = FUTURE_TIME_STEP
 
 
 def log_likelihood_loss(y_true, y_pred):
@@ -22,8 +22,8 @@ def log_likelihood_loss(y_true, y_pred):
     mu_x = tf.reshape(mu_x, [-1, M, T])
     mu_y = tf.reshape(mu_y, [-1, M, T])
 
-    log_var_x = tf.clip_by_value(log_var_x, clip_value_min=-3.0, clip_value_max=4)
-    log_var_y = tf.clip_by_value(log_var_y, clip_value_min=-3.0, clip_value_max=4)
+    log_var_x = tf.clip_by_value(log_var_x, clip_value_min=-5.0, clip_value_max=5)
+    log_var_y = tf.clip_by_value(log_var_y, clip_value_min=-5.0, clip_value_max=5)
     var_x = tf.reshape(tf.exp(log_var_x), [-1, M, T])
     var_y = tf.reshape(tf.exp(log_var_y), [-1, M, T])
 
@@ -121,7 +121,7 @@ def main():
                            input_ptraj_shape=(PAST_TIME_STEP*2, ),
                            node_num=2048,
                            gmm_comp=NUM_GAUSSIAN_COMPONENT,
-                           time_steps=NUM_TIME_SEQUENCE)
+                           time_steps=FUTURE_TIME_STEP)
 
     model.compile(optimizer=keras.optimizers.Adam(),
                   loss=log_likelihood_loss)
