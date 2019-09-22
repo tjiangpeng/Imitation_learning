@@ -24,7 +24,7 @@ def main():
     # Model
     model = ResNet50V2(include_top=True, weights=None,
                        input_shape=(IMAGE_WIDTH, IMAGE_HEIGHT, NUM_CHANNELS),
-                       classes=NUM_TIME_SEQUENCE*2)
+                       classes=FUTURE_TIME_STEP*2)
     # model = ResNet50V2_fc(weights=None,
     #                       input_img_shape=(IMAGE_WIDTH, IMAGE_HEIGHT, NUM_CHANNELS),
     #                       input_ptraj_shape=(PAST_TIME_STEP*2, ),
@@ -60,7 +60,7 @@ def main():
 
         la[0] = la[0] / 0.2
         y[0] = y[0] / 0.2
-        for ind in range(NUM_TIME_SEQUENCE):
+        for ind in range(FUTURE_TIME_STEP):
             pos_gt = la[0][2*ind:2*ind+2]
             pos_pred = y[0][2*ind:2*ind+2]
 

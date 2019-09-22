@@ -18,7 +18,7 @@ def main():
     # Model
     model = ResNet50V2(include_top=True, weights='../../../logs/ResNet/checkpoints/20190818-191529weights056.h5',
                        input_shape=(IMAGE_WIDTH, IMAGE_HEIGHT, NUM_CHANNELS),
-                       classes=NUM_TIME_SEQUENCE*2)
+                       classes=FUTURE_TIME_STEP*2)
 
     model.compile(optimizer=keras.optimizers.Adam(),
                   loss='mse',
@@ -41,7 +41,7 @@ def main():
 
         la[0] = la[0] + 0.5
         y[0] = y[0] + 0.5
-        for ind in range(NUM_TIME_SEQUENCE):
+        for ind in range(FUTURE_TIME_STEP):
             pos_gt = la[0][2*ind:2*ind+2].astype(np.int)
             pos_pred = y[0][2*ind:2*ind+2].astype(np.int)
 

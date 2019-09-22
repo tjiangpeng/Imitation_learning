@@ -8,18 +8,26 @@ from hparms import *
 # Constant
 ###############################################################################
 
-NUM_IMAGES = {
-    'train': 1281167,
-    'validation': 50000,
-}
 
-_NUM_TRAIN_FILES = 4
-_NUM_VALIDATION_FILES = 1
-_SHUFFLE_BUFFER = 10000
-# IMAGE_MEAN_ARRAY = np.load("/home/shaojun/jiangpeng/CARLA/CARLA_0_9_6/PythonAPI/Imitation_learning/utils/image_mean.npy")
+
 ###############################################################################
 # Data processing
 ###############################################################################
+
+
+def render_past_traj(map, past_traj):
+
+    past_traj = past_traj / 0.2
+    for ind in range(PAST_TIME_STEP):
+        pos = past_traj[2*ind:2*ind+2]
+        pos[1] = pos[1] * -1
+        pos = pos + [IMAGE_WIDTH/2, IMAGE_HEIGHT/2] + 0.5
+        pos = pos.astype(np.int)
+
+        if 0 <= pos[0] < IMAGE_HEIGHT and 0 <= pos[1] < IMAGE_HEIGHT:
+            map[pos[1]][pos[0]] = (255.0, 0.0, 255.0)
+
+    return map
 
 
 def get_filenames(is_training, data_dir):
@@ -100,23 +108,25 @@ def parse_record(raw_record):
     """
     image_buffer, past_traj_buffer, future_traj_buffer = _parse_example_proto(raw_record)
 
-    # image = tf.decode_raw(image_buffer, tf.uint8)
-    # image = tf.reshape(image, shape=[IMAGE_HEIGHT, IMAGE_WIDTH, NUM_CHANNELS])
-    # image = tf.cast(image, tf)
-    image = tf.image.decode_png(image_buffer, channels=NUM_CHANNELS)
-    image.set_shape([IMAGE_HEIGHT, IMAGE_WIDTH, NUM_CHANNELS])
-    image = tf.cast(image, tf.float32)
-    # normalize image
-    image = image / 255.0
-    # image = image - tf.convert_to_tensor(IMAGE_MEAN_ARRAY, dtype=tf.float32)
-
     past_traj = tf.decode_raw(past_traj_buffer, tf.float64)
     past_traj = tf.cast(past_traj, tf.float32)
     past_traj = tf.reshape(past_traj, shape=[PAST_TIME_STEP*2, ])
 
     future_traj = tf.decode_raw(future_traj_buffer, tf.float64)
     future_traj = tf.cast(future_traj, tf.float32)
-    future_traj = tf.reshape(future_traj, shape=[NUM_TIME_SEQUENCE*2, ])
+    future_traj = tf.reshape(future_traj, shape=[FUTURE_TIME_STEP*2, ])
+
+    # image = tf.decode_raw(image_buffer, tf.uint8)
+    # image = tf.reshape(image, shape=[IMAGE_HEIGHT, IMAGE_WIDTH, NUM_CHANNELS])
+    # image = tf.cast(image, tf)
+    image = tf.image.decode_png(image_buffer, channels=NUM_CHANNELS)
+    image.set_shape([IMAGE_HEIGHT, IMAGE_WIDTH, NUM_CHANNELS])
+    image = tf.cast(image, tf.float32)
+
+    image = tf.py_func(render_past_traj, [image, past_traj], tf.float32)
+    # normalize image
+    image = image / 255.0
+    # image = image - tf.convert_to_tensor(IMAGE_MEAN_ARRAY, dtype=tf.float32)
 
     return {"input_1": image, "input_2": past_traj}, future_traj
     # return image, future_traj
