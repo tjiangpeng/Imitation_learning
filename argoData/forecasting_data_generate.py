@@ -241,17 +241,17 @@ def write_tf_record(args: Any) -> None:
                                       convert_tf_record=True,
                                       overwrite_rendered_file=args.overwrite_rendered_file)
 
-    if not Path(f"{args.dataset_dir}../tf_record").exists():
-        os.makedirs(f"{args.dataset_dir}../tf_record")
+    if not Path(f"{args.dataset_dir}../{args.prefix_tf_record}").exists():
+        os.makedirs(f"{args.dataset_dir}../{args.prefix_tf_record}")
 
     print("Start rendering...")
     for i in range(args.starting_frame_ind, fomv.num):
-    # for i in range(9216, 51200):
+    # for i in range(91648, 102400):
         if (i+1) % 64 == 0:
             print(f"Processing {i}th frame")
         if i % FRAME_IN_SHARD == 0:
             shard_ind = int(i / FRAME_IN_SHARD)
-            writer = tf.io.TFRecordWriter(f"{args.dataset_dir}/../tf_record/{shard_ind}_tf_record")
+            writer = tf.io.TFRecordWriter(f"{args.dataset_dir}/../{args.prefix_tf_record}/{shard_ind}_tf_record")
 
         past_traj, future_traj, center_lines, surr_past_pos = fomv.plot_log_one_at_a_time(avm, log_num=i)
         example = convert_to_example(past_traj, future_traj, center_lines, surr_past_pos)
@@ -267,9 +267,11 @@ def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset_dir", type=str, help="path to where the logs live",
-                        default="../../data/argo/forecasting/sample/data/")
+                        default="../../data/argo/forecasting/train/data/")
     parser.add_argument("--convert_tf_record", help="convert to tfrecord file or not",
                         default=True)
+    parser.add_argument("--prefix_tf_record", help="folder name to save tfrecord files",
+                        default="tf_record_new")
     parser.add_argument("--starting_frame_ind", type=int, help="which frame to start",
                         default=0)
     parser.add_argument("--save_image", help="save rendered image or not",

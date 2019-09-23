@@ -10,7 +10,7 @@ def main():
     keras.backend.clear_session()
     sess = tf.Session()
 
-    data_dir = ['../../data/argo/forecasting/sample/tf_record/']
+    data_dir = ['../../data/argo/forecasting/sample/tf_record_new/']
 
     dataset = input_fn(is_training=False, data_dir=data_dir, batch_size=1)
     iterator = dataset.make_one_shot_iterator()
