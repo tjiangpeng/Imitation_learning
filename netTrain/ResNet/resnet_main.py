@@ -5,7 +5,8 @@ import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 from netTrain.ResNet.net_model import ResNet50V2, ResNet50V2_fc
-from argoPrepare.load_tfrecord_argo import input_fn
+# from argoPrepare.load_tfrecord_argo import input_fn
+from argoData.load_tfrecord_argo import input_fn
 # from utils_custom.load_tfrecord import input_fn
 from utils_custom.metrics import ADE_1S, FDE_1S, ADE_3S, FDE_3S
 from hparms import *
@@ -68,11 +69,11 @@ def main():
     #             '../../../data/argo/argoverse-tracking/train2_tf_record/',
     #             '../../../data/argo/argoverse-tracking/train3_tf_record/',
     #             '../../../data/argo/argoverse-tracking/train4_tf_record/']
-    data_dir = ['../../../data/argo/forecasting/train/tf_record/']
+    data_dir = ['../../../data/argo/forecasting/train/tf_record_new/']
     train_dataset = input_fn(is_training=True, data_dir=data_dir, batch_size=32, num_epochs=NUM_EPOCHS)
 
     # data_dir = ['../../../data/2019_08_07/']#, '../../../data/2019_08_14/']
-    data_dir = ['../../../data/argo/forecasting/val/tf_record/']
+    data_dir = ['../../../data/argo/forecasting/val/tf_record_new/']
     valid_dataset = input_fn(is_training=False, data_dir=data_dir, batch_size=32, num_epochs=NUM_EPOCHS)
     ####################################################################################################################
     # Model
@@ -86,7 +87,7 @@ def main():
     #                       classes=NUM_TIME_SEQUENCE*2)
 
     model = keras.utils.multi_gpu_model(model, gpus=4)
-    model.load_weights('../../../logs/ResNet/checkpoints/20190919-101758weights009.h5')
+    # model.load_weights('../../../logs/ResNet/checkpoints/20190919-101758weights009.h5')
 
     model.compile(optimizer=keras.optimizers.Adam(lr=lr_schedule(0)),
                   loss='mse',

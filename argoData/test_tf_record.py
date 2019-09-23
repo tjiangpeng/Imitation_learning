@@ -1,3 +1,4 @@
+import os
 import cv2
 import tensorflow as tf
 import numpy as np
@@ -5,12 +6,14 @@ from tensorflow import keras
 from argoData.load_tfrecord_argo import input_fn
 from hparms import *
 
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 def main():
     keras.backend.clear_session()
     sess = tf.Session()
 
-    data_dir = ['../../data/argo/forecasting/sample/tf_record_new/']
+    data_dir = ['../../data/argo/forecasting/val/tf_record_new/']
 
     dataset = input_fn(is_training=False, data_dir=data_dir, batch_size=1)
     iterator = dataset.make_one_shot_iterator()
