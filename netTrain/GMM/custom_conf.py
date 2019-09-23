@@ -121,11 +121,7 @@ def main():
                            input_ptraj_shape=(PAST_TIME_STEP*2, ),
                            node_num=2048,
                            gmm_comp=NUM_GAUSSIAN_COMPONENT,
-<<<<<<< HEAD
-                           time_steps=NUM_TIME_SEQUENCE)
-=======
                            time_steps=FUTURE_TIME_STEP)
->>>>>>> f85c6bb25ef70e33adc34fe616830bca4104afd5
 
     model.compile(optimizer=keras.optimizers.Adam(),
                   loss=log_likelihood_loss)
