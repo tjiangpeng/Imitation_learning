@@ -13,7 +13,7 @@ def main():
     keras.backend.clear_session()
     sess = tf.Session()
 
-    data_dir = ['../../data/argo/forecasting/val/tf_record_new/']
+    data_dir = ['../../data/argo/forecasting/sample/tf_record_new/']
 
     dataset = input_fn(is_training=False, data_dir=data_dir, batch_size=1)
     iterator = dataset.make_one_shot_iterator()
@@ -27,11 +27,12 @@ def main():
 
         im = im["input_1"][0] * 255.0
         im = im.astype(np.uint8)
-        image = cv2.cvtColor(im[:, :, 0:3], cv2.COLOR_BGR2RGB)
+        # image = cv2.cvtColor(im[:, :, 0:3], cv2.COLOR_BGR2RGB)
+        image = im[:, :, 0]
 
-        past_traj = im[:, :, 3]
-        clines = im[:, :, 4]
-        surr = im[:, :, 5]
+        past_traj = im[:, :, 1]
+        clines = im[:, :, 2]
+        surr = im[:, :, 3]
         cv2.imshow('image', image)
         cv2.imshow('past_traj', past_traj)
         cv2.imshow('clines', clines)

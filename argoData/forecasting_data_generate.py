@@ -10,6 +10,7 @@ from math import ceil, sqrt
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 import numpy as np
+import cv2
 
 from argoverse.data_loading.argoverse_forecasting_loader import ArgoverseForecastingLoader
 from argoverse.map_representation.map_api import ArgoverseMap
@@ -19,6 +20,7 @@ import tensorflow as tf
 
 from argoData.tfrecord_config import convert_to_example
 from hparms import *
+from utils_custom.utils_argo import agent_cord_to_image_cord
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -96,22 +98,23 @@ class ForecastingOnMapVisualizer:
             fig.tight_layout()
 
             # Draw map
-            xmin = xcenter - 80
-            xmax = xcenter + 80
-            ymin = ycenter - 80
-            ymax = ycenter + 80
+            xmin = xcenter - 60
+            xmax = xcenter + 60
+            ymin = ycenter - 60
+            ymax = ycenter + 60
             local_lane_polygons = avm.find_local_lane_polygons([xmin, xmax, ymin, ymax], city_name)
             local_das = avm.find_local_driveable_areas([xmin, xmax, ymin, ymax], city_name)
-            draw_lane_polygons(ax, local_lane_polygons, color="tab:gray")
-            draw_lane_polygons(ax, local_das, color=(1, 0, 1))
 
             # Render and get the log info
             viz = False
             if self.save_img:
                 viz = True
+                draw_lane_polygons(ax, local_lane_polygons, color="tab:gray")
+                draw_lane_polygons(ax, local_das, color=(1, 0, 1))
             if self.convert_tf_record:
                 # Save the map image
-                plt.savefig("temp.png", dpi=100, facecolor='k', bbox_inches='tight', pad_inches=0)
+                # plt.savefig("temp.png", dpi=100, facecolor='k', bbox_inches='tight', pad_inches=0)
+                self.get_map_with_one_channel(local_lane_polygons, local_das, self.log_agent_pose[i, :])
 
             past_traj = self.get_agent_past_traj(ax, i, viz)
             future_traj = self.get_agent_future_traj(ax, i, viz)
@@ -127,6 +130,25 @@ class ForecastingOnMapVisualizer:
 
         return past_traj, future_traj, center_lines, surr_past_pos
 
+    def get_map_with_one_channel(
+        self,
+        local_lane_polygons,
+        local_das,
+        agent_pos
+    ):
+        map = np.zeros([IMAGE_HEIGHT, IMAGE_WIDTH], dtype=np.uint8)
+        pts = [None for i in range(local_lane_polygons.shape[0])]
+        for i, polygon in enumerate(local_lane_polygons):
+            pts[i] = agent_cord_to_image_cord(polygon[:, 0:2] - agent_pos)
+        cv2.polylines(map, pts, isClosed=False, color=255, thickness=1)
+
+        pts = [None for i in range(local_das.shape[0])]
+        for i, polygon in enumerate(local_das):
+            pts[i] = agent_cord_to_image_cord(polygon[:, 0:2] - agent_pos)
+        cv2.polylines(map, pts, isClosed=False, color=128, thickness=1)
+
+        cv2.imwrite("temp.png", map)
+
     def get_surr_past_traj(
         self,
         ax: Axes,
@@ -134,7 +156,7 @@ class ForecastingOnMapVisualizer:
         cur_time: int,
         agent_pos,
         viz=False
-    ) -> None:
+    ):
         which_timestamps = self.timestamps[cur_time-SURR_TIME_STEP:cur_time+1]
 
         # Remove agent row
@@ -267,7 +289,7 @@ def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset_dir", type=str, help="path to where the logs live",
-                        default="../../data/argo/forecasting/train/data/")
+                        default="../../data/argo/forecasting/sample/data/")
     parser.add_argument("--convert_tf_record", help="convert to tfrecord file or not",
                         default=True)
     parser.add_argument("--prefix_tf_record", help="folder name to save tfrecord files",
