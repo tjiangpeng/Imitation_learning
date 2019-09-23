@@ -18,12 +18,21 @@ def main():
 
     while True:
         im, ftraj = sess.run([image_batch, future_traj_batch])
+        # print(im["input_2"][0])
+        # print("++++++++++++++")
+        # print(ftraj[0])
+
         im = im["input_1"][0] * 255.0
         im = im.astype(np.uint8)
+        image = cv2.cvtColor(im[:, :, 0:3], cv2.COLOR_BGR2RGB)
 
-        image = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
-
+        past_traj = im[:, :, 3]
+        clines = im[:, :, 4]
+        surr = im[:, :, 5]
         cv2.imshow('image', image)
+        cv2.imshow('past_traj', past_traj)
+        cv2.imshow('clines', clines)
+        cv2.imshow('surr', surr)
         while True:
             k = cv2.waitKey(1)
             if k == 27:

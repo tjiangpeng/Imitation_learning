@@ -2,6 +2,8 @@ import os
 import glob
 import tensorflow as tf
 import numpy as np
+import cv2
+import matplotlib.pyplot as plt
 from random import shuffle
 
 from hparms import *
@@ -17,15 +19,23 @@ from utils_custom.utils_argo import agent_cord_to_image_cord
 ###############################################################################
 
 
-def render_past_traj(map, past_traj):
-
-    for ind in range(PAST_TIME_STEP):
-        pos = np.array([past_traj[ind], past_traj[ind+PAST_TIME_STEP]])
-        pos = agent_cord_to_image_cord(pos)
-
+def render_past_traj(img, past_traj, sep=False, size=2):
+    if sep:
+        img = np.concatenate((img, np.zeros([img.shape[0], img.shape[1], 1], dtype=np.float32)), axis=2)
+    for ind in range(PAST_TIME_STEP+1):
+        if ind == PAST_TIME_STEP:
+            pos = [int(IMAGE_WIDTH/2), int(IMAGE_HEIGHT/2)]
+        else:
+            pos = np.array([past_traj[ind], past_traj[ind + PAST_TIME_STEP]])
+            pos = agent_cord_to_image_cord(pos)
         if 0 <= pos[0] < IMAGE_HEIGHT and 0 <= pos[1] < IMAGE_HEIGHT:
-            map[pos[1]][pos[0]] = (0.0, 0.0, 255.0)
-    return map
+            if sep:
+                img[max(0, pos[1]-size):min(IMAGE_HEIGHT, pos[1]+size+1),
+                    max(0, pos[0]-size):min(IMAGE_WIDTH, pos[0]+size+1), -1] = 255.0 * (ind+1) / (PAST_TIME_STEP+1)
+            else:
+                img[pos[1]][pos[0]] = (0.0, 0.0, 255.0)
+
+    return img
 
 
 def render_future_traj(img, future_traj):
@@ -39,27 +49,44 @@ def render_future_traj(img, future_traj):
     return img
 
 
-def render_center_lines(img, center_lines, clines_num):
+def render_center_lines(img, center_lines, clines_num, sep=False, size=2):
+    if sep:
+        clines_channel = np.zeros([img.shape[0], img.shape[1], 1], dtype=np.float32)
+
     clines_num = int(clines_num[0])
     center_lines = np.reshape(center_lines, [clines_num, -1, 2])
     for i in range(clines_num):
         cline = center_lines[i]
-        for j in range(cline.shape[0]):
-            if cline[j, 0] != -1000:
+        cline = cline[cline[:, 0] != 10000, :]  # ignore invalid points
+        if sep:
+            pos = agent_cord_to_image_cord(cline)
+            cv2.polylines(clines_channel, [pos], isClosed=False, color=255.0, thickness=size)
+        else:
+            for j in range(cline.shape[0]):
                 pos = agent_cord_to_image_cord(cline[j, :])
                 if 0 <= pos[0] < IMAGE_HEIGHT and 0 <= pos[1] < IMAGE_HEIGHT:
                     img[pos[1]][pos[0]] = (255.0, 255.0, 255.0)
+
+    if sep:
+        img = np.concatenate((img, clines_channel), axis=2)
     return img
 
 
-def render_surr(img, surr_past_pos):
-    for i in range(surr_past_pos.shape[0]):
-        for ind in range(SURR_TIME_STEP+1):
-            if surr_past_pos[i, ind] != -1000:
+def render_surr(img, surr_past_pos, sep=False, size=4):
+    if sep:
+        img = np.concatenate((img, np.zeros([img.shape[0], img.shape[1], 1], dtype=np.float32)), axis=2)
+
+    for ind in range(SURR_TIME_STEP+1):
+        for i in range(surr_past_pos.shape[0]):
+            if surr_past_pos[i, ind] != 10000:  # ignore invalid points
                 pos = np.array([surr_past_pos[i, ind], surr_past_pos[i, ind+SURR_TIME_STEP+1]])
                 pos = agent_cord_to_image_cord(pos)
                 if 0 <= pos[0] < IMAGE_HEIGHT and 0 <= pos[1] < IMAGE_HEIGHT:
-                    img[pos[1]][pos[0]] = (255.0, 255.0, 0.0)
+                    if sep:
+                        img[max(0, pos[1]-size):min(IMAGE_HEIGHT, pos[1]+size+1),
+                            max(0, pos[0]-size):min(IMAGE_WIDTH, pos[0]+size+1), -1] = 255 * (ind+1) / (SURR_TIME_STEP+1)
+                    else:
+                        img[pos[1]][pos[0]] = (255.0, 255.0, 0.0)
     return img
 
 
@@ -123,10 +150,10 @@ def parse_record(raw_record):
     map.set_shape([IMAGE_HEIGHT, IMAGE_WIDTH, NUM_CHANNELS])
     map = tf.cast(map, tf.float32)
 
-    image = tf.py_func(render_past_traj, [map, past_traj], tf.float32)
-    image = tf.py_func(render_future_traj, [image, future_traj], tf.float32)
-    image = tf.py_func(render_center_lines, [image, center_lines, clines_num], tf.float32)
-    image = tf.py_func(render_surr, [image, surr_past_pos], tf.float32)
+    image = tf.py_func(render_past_traj, [map, past_traj, True], tf.float32)
+    # image = tf.py_func(render_future_traj, [image, future_traj], tf.float32)
+    image = tf.py_func(render_center_lines, [image, center_lines, clines_num, True], tf.float32)
+    image = tf.py_func(render_surr, [image, surr_past_pos, True], tf.float32)
     # normalize image
     image = image / 255.0
 
