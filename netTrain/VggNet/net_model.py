@@ -19,7 +19,7 @@ lrelu = lambda x: tf.keras.activations.relu(x, alpha=0.1)
 IMAGE_HEIGHT = 384
 IMAGE_WIDTH = 384
 NUM_CHANNELS = 3
-# NUM_TIME_SEQUENCE = 20
+# FUTURE_TIME_STEP = 20
 # NUM_HIDDEN_NODES = 2500
 
 def VGG16(include_top=False,

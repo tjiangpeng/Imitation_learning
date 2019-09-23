@@ -8,7 +8,7 @@ from argoPrepare.load_tfrecord_argo import input_fn
 from netTrain.GMM.net_model import ResNet50V2_gmm
 
 M = NUM_GAUSSIAN_COMPONENT
-T = NUM_TIME_SEQUENCE
+T = FUTURE_TIME_STEP
 
 
 def log_likelihood_loss(y_true, y_pred):
@@ -121,7 +121,11 @@ def main():
                            input_ptraj_shape=(PAST_TIME_STEP*2, ),
                            node_num=2048,
                            gmm_comp=NUM_GAUSSIAN_COMPONENT,
+<<<<<<< HEAD
                            time_steps=NUM_TIME_SEQUENCE)
+=======
+                           time_steps=FUTURE_TIME_STEP)
+>>>>>>> f85c6bb25ef70e33adc34fe616830bca4104afd5
 
     model.compile(optimizer=keras.optimizers.Adam(),
                   loss=log_likelihood_loss)

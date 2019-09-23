@@ -9,39 +9,43 @@ from netTrain.ResNet.net_model import ResNet50V2, ResNet50V2_fc
 from hparms import *
 from utils_custom.metrics import FDE_1S, FDE_3S, ADE_1S, ADE_3S
 
-#os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-#os.environ["CUDA_VISIBLE_DEVICES"] = "3"  # specify which GPU(s) to be used
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,4"  # specify which GPU(s) to be used
 
 
 def main():
     keras.backend.clear_session()
     sess = tf.Session()
 
-    dataset = input_fn(is_training=False, data_dir=['../../../data/argo/forecasting/val/tf_record/'], batch_size=16)
+    dataset = input_fn(is_training=False, data_dir=['../../../data/argo/forecasting/val/tf_record/'], batch_size=1)
     iterator = dataset.make_one_shot_iterator()
     image_batch, traj_batch = iterator.get_next()
 
     # Model
-#    model = ResNet50V2(include_top=True, weights='../../../logs/ResNet/checkpoints/20190911-083837weights018.h5',
-#                       input_shape=(IMAGE_WIDTH, IMAGE_HEIGHT, NUM_CHANNELS),
-#                       classes=NUM_TIME_SEQUENCE*2)
-    model = ResNet50V2_fc(weights='../../../logs/ResNet/checkpoints/20190912-095604weights055.h5',
-                          input_img_shape=(IMAGE_WIDTH, IMAGE_HEIGHT, NUM_CHANNELS),
-                          input_ptraj_shape=(PAST_TIME_STEP*2, ),
-                          node_num=2048,
-                          classes=NUM_TIME_SEQUENCE*2)
+    model = ResNet50V2(include_top=True, weights=None,
+                       input_shape=(IMAGE_WIDTH, IMAGE_HEIGHT, NUM_CHANNELS),
+                       classes=FUTURE_TIME_STEP*2)
+    # model = ResNet50V2_fc(weights=None,
+    #                       input_img_shape=(IMAGE_WIDTH, IMAGE_HEIGHT, NUM_CHANNELS),
+    #                       input_ptraj_shape=(PAST_TIME_STEP*2, ),
+    #                       node_num=2048,
+    #                       classes=NUM_TIME_SEQUENCE*2)
+
+    # model = keras.utils.multi_gpu_model(model, gpus=4)
+    # model.load_weights('../../../logs/ResNet/checkpoints/20190918-093730weights039.h5')
+    model.load_weights('new_model.h5')
 
     model.compile(optimizer=keras.optimizers.Adam(),
                   loss='mse',
                   metrics=[ADE_1S, FDE_1S, ADE_3S, FDE_3S])
 
     # Evaluate
-    scores = model.evaluate(dataset, verbose=1, steps=2500)
-    print("%s: %.2f" % (model.metrics_names[1], scores[1]))
-    print("%s: %.2f" % (model.metrics_names[2], scores[2]))
-    print("%s: %.2f" % (model.metrics_names[3], scores[3]))
-    print("%s: %.2f" % (model.metrics_names[4], scores[4]))
-#    print("%s: %.2f" % (model.metrics_names[5], scores[5]))
+    # scores = model.evaluate(dataset, verbose=1, steps=2500)
+    # print("%s: %.2f" % (model.metrics_names[1], scores[1]))
+    # print("%s: %.2f" % (model.metrics_names[2], scores[2]))
+    # print("%s: %.2f" % (model.metrics_names[3], scores[3]))
+    # print("%s: %.2f" % (model.metrics_names[4], scores[4]))
+    # print("%s: %.2f" % (model.metrics_names[5], scores[5]))
 
     # outVideo = cv2.VideoWriter('out.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 10, (101, 115))
     for i in range(10000):
@@ -56,7 +60,7 @@ def main():
 
         la[0] = la[0] / 0.2
         y[0] = y[0] / 0.2
-        for ind in range(NUM_TIME_SEQUENCE):
+        for ind in range(FUTURE_TIME_STEP):
             pos_gt = la[0][2*ind:2*ind+2]
             pos_pred = y[0][2*ind:2*ind+2]
 
@@ -71,7 +75,7 @@ def main():
             if 0 <= pos_gt[0] < IMAGE_HEIGHT and 0 <= pos_gt[1] < IMAGE_HEIGHT:
                 image[pos_gt[1]][pos_gt[0]] = (0, 0, 255)
             if 0 <= pos_pred[0] < IMAGE_HEIGHT and 0 <= pos_pred[1] < IMAGE_HEIGHT:
-                image[pos_pred[1]][pos_pred[0]] = (255, 255, 255)
+                image[pos_pred[1]][pos_pred[0]] = (0, 255, 0)
         cv2.imshow('image', image)
 
         # outVideo.write(cropImg)

@@ -123,7 +123,7 @@ def parse_record(raw_record):
 
     traj = tf.decode_raw(traj_buffer, tf.int64)
     traj = tf.cast(traj, tf.float32)
-    traj = tf.reshape(traj, shape=[NUM_TIME_SEQUENCE*2, ])
+    traj = tf.reshape(traj, shape=[FUTURE_TIME_STEP*2, ])
     # normailize traj
     # traj = traj / IMAGE_WIDTH
 

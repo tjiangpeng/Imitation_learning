@@ -62,7 +62,7 @@ def main():
     valid_dataset = input_fn(is_training=False, data_dir=data_dir, batch_size=8, num_epochs=NUM_EPOCHS)
     ####################################################################################################################
     # Model
-    model = VGG16_FL(num_node=NUM_HIDDEN_NODES, num_time_sequence=NUM_TIME_SEQUENCE,
+    model = VGG16_FL(num_node=NUM_HIDDEN_NODES, num_time_sequence=FUTURE_TIME_STEP,
                      weight='logs/checkpoints/20190815-171720weights0062.h5') #'logs/checkpoints/20190815-084234weights0010.h5'
 
     model.compile(optimizer=keras.optimizers.Adam(lr=lr_schedule(0)),

@@ -1,6 +1,5 @@
 import argparse
 import logging
-import glob
 import sys
 import os
 from typing import Any
@@ -18,10 +17,8 @@ from argoverse.utils.mpl_plotting_utils import draw_lane_polygons
 
 import tensorflow as tf
 
-from argoPrepare.tfrecord_processing import convert_to_example
-
-os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "2,3,4"
+from argoData.tfrecord_config import convert_to_example
+from hparms import *
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -30,9 +27,6 @@ logger = logging.getLogger(__name__)
 # -- Constants ----------------------------------------------------------------
 # =============================================================================
 AGENT_TIME_STEP = 19
-SURR_TIME_STEP = 10
-FUTURE_TIME_STEP = 30
-
 FIELD_VIEW = 80.0  # meter
 
 FRAME_IN_SHARD = 512
@@ -47,7 +41,7 @@ class ForecastingOnMapVisualizer:
     ) -> None:
 
         self.dataset_dir = dataset_dir
-        print("Loading data...")
+        print("Load data...")
         self.afl = ArgoverseForecastingLoader(dataset_dir)
         self.num = len(self.afl)
         self.log_agent_pose = None
@@ -59,7 +53,6 @@ class ForecastingOnMapVisualizer:
         self.convert_tf_record = convert_tf_record
         self.overwrite_rendered_file = overwrite_rendered_file
         self.save_img = save_img
-        # self.plot_lane_tangent_arrows = plot_lane_tangent_arrows
 
         if save_img:
             if not Path(f"{self.dataset_dir}../rendered_image").exists():
@@ -100,6 +93,7 @@ class ForecastingOnMapVisualizer:
             ax = fig.add_subplot(111)
             ax.set_xlim([-FIELD_VIEW/2+xcenter, FIELD_VIEW/2+xcenter])
             ax.set_ylim([-FIELD_VIEW/2+ycenter, FIELD_VIEW/2+ycenter])
+            fig.tight_layout()
 
             # Draw map
             xmin = xcenter - 80
@@ -111,102 +105,111 @@ class ForecastingOnMapVisualizer:
             draw_lane_polygons(ax, local_lane_polygons, color="tab:gray")
             draw_lane_polygons(ax, local_das, color=(1, 0, 1))
 
-            # Render
-            self.render_surr_past_traj(ax, df, i, avm, city_name)
-            past_traj = self.render_agent_past_traj(ax, i)
-            self.render_candidate_centerlines(ax, self.log_agent_pose[:(AGENT_TIME_STEP+1)], avm, city_name)
-
-            fig.tight_layout()
+            # Render and get the log info
+            viz = False
             if self.save_img:
-                self.get_future_traj(ax, i, True)
+                viz = True
+            if self.convert_tf_record:
+                # Save the map image
+                plt.savefig("temp.png", dpi=100, facecolor='k', bbox_inches='tight', pad_inches=0)
+
+            past_traj = self.get_agent_past_traj(ax, i, viz)
+            future_traj = self.get_agent_future_traj(ax, i, viz)
+            center_lines = self.get_candidate_centerlines(ax, self.log_agent_pose[:(AGENT_TIME_STEP+1), :],
+                                                          avm, city_name, viz)
+            surr_past_pos = self.get_surr_past_traj(ax, df, i, self.log_agent_pose[i, :], viz)
+
+            if self.save_img:
                 shard_ind = 1
                 plt.savefig(
                     f"{self.dataset_dir}../rendered_image/{shard_ind}/{img_name}",
-                    dpi=100, facecolor='k', bbox_inches='tight', pad_inches=0
-                )
-            future_traj = 0
-            if self.convert_tf_record:
-                future_traj = self.get_future_traj(ax, i, False)
-                plt.savefig("temp.png", dpi=100, facecolor='k', bbox_inches='tight', pad_inches=0)
-        return past_traj, future_traj
+                    dpi=100, facecolor='k', bbox_inches='tight', pad_inches=0)
 
-    def render_surr_past_traj(
+        return past_traj, future_traj, center_lines, surr_past_pos
+
+    def get_surr_past_traj(
         self,
         ax: Axes,
         df: pd.DataFrame,
         cur_time: int,
-        avm=None,
-        city_name: str = None
+        agent_pos,
+        viz=False
     ) -> None:
         which_timestamps = self.timestamps[cur_time-SURR_TIME_STEP:cur_time+1]
 
+        # Remove agent row
+        df = df[df["OBJECT_TYPE"] != "AGENT"]
         frames = df.groupby("TIMESTAMP")
         # get dataset at "which_timestamps"
         which_groups = [None for i in range(0, SURR_TIME_STEP+1)]
         for group_name, group_data in frames:
             if group_name == which_timestamps[-1]:
-                track_ids = group_data["TRACK_ID"].values
+                track_ids = group_data["TRACK_ID"].values.tolist()
             if group_name in which_timestamps:
                 ind = which_timestamps.index(group_name)
                 which_groups[ind] = group_data.values[:, 1:5]
 
+        surr_past_pos = np.ones([len(track_ids), (SURR_TIME_STEP+1)*2]) * 10000.0
         # render color with decreasing lightness
         color_lightness = np.linspace(1, 0, SURR_TIME_STEP+2)[1:].tolist()
         marker_size = 10
         for idx, group in enumerate(which_groups):
             for i in range(group.shape[0]):
-                if not group[i, 1] == 'AGENT':
-                # if group[i, 1] == 'OTHERS':
-                    c = [(1, 1, color_lightness[idx])]
-                # elif group[i, 1] == 'AV':
-                #     c = [(color_lightness[idx], 1, color_lightness[idx])]
-                else:
-                    continue
                 if group[i, 0] in track_ids:
                     x = group[i, 2]
                     y = group[i, 3]
-                    if idx == SURR_TIME_STEP:
-                        marker_size = 20
-                        # Render lane tangent arrows
-                        # tangent_xy, conf = avm.get_lane_direction(
-                        #     query_xy_city_coords=np.array([x, y]), city_name=city_name
-                        # )
-                        # tangent_xy = tangent_xy / sqrt(tangent_xy[0]**2+tangent_xy[1]**2)
-                        # ax.arrow(x, y, tangent_xy[0]*2, tangent_xy[1]*2, color="r", width=0.4)
-                    ax.scatter(x, y, s=marker_size, c=c, alpha=1, zorder=2)
 
-    def render_agent_past_traj(
+                    surr_past_pos[track_ids.index(group[i, 0]), idx] = x - agent_pos[0]
+                    surr_past_pos[track_ids.index(group[i, 0]), idx+SURR_TIME_STEP+1] = y - agent_pos[1]
+                    if viz:
+                        c = [(1, 1, color_lightness[idx])]
+                        if idx == SURR_TIME_STEP:
+                            marker_size = 20
+                        ax.scatter(x, y, s=marker_size, c=c, alpha=1, zorder=2)
+
+        return surr_past_pos
+
+    def get_agent_past_traj(
         self,
         ax: Axes,
-        cur_time: int
+        cur_time: int,
+        viz=False
     ):
-        marker_size = 10
-        color_lightness = np.linspace(1, 0, AGENT_TIME_STEP + 1)[1:].tolist()
-        for i in range(cur_time-AGENT_TIME_STEP, cur_time+1):
-            if i == cur_time:
-                marker_size = 10
-                color = [(0, 1, 0)]
-            else:
-                color = [(color_lightness[i], color_lightness[i], 1)]
-            x = self.log_agent_pose[i, 0]
-            y = self.log_agent_pose[i, 1]
-            ax.scatter(x, y, s=marker_size, c=color, alpha=1, zorder=4)
+        if viz:
+            marker_size = 10
+            color_lightness = np.linspace(1, 0, AGENT_TIME_STEP + 1)[1:].tolist()
+            for i in range(cur_time-AGENT_TIME_STEP, cur_time+1):
+                if i == cur_time:
+                    marker_size = 10
+                    color = [(0, 1, 0)]
+                else:
+                    color = [(color_lightness[i], color_lightness[i], 1)]
+                x = self.log_agent_pose[i, 0]
+                y = self.log_agent_pose[i, 1]
+                ax.scatter(x, y, s=marker_size, c=color, alpha=1, zorder=4)
 
         past_traj = self.log_agent_pose[cur_time-AGENT_TIME_STEP:cur_time, :] - self.log_agent_pose[cur_time, :]
         return past_traj
 
-    def render_candidate_centerlines(
+    def get_candidate_centerlines(
         self,
         ax: Axes,
         agent_obs_traj: np.ndarray,
         avm,
         city_name: str,
+        viz=False
     ):
         candidate_centerlines = avm.get_candidate_centerlines_for_traj(agent_obs_traj, city_name)
-        for centerline in candidate_centerlines:
-            ax.plot(centerline[:, 0].tolist(), centerline[:, 1].tolist(), "-", color="w", zorder=3)
+        for ind, centerline in enumerate(candidate_centerlines):
+            if viz:
+                ax.plot(centerline[:, 0].tolist(), centerline[:, 1].tolist(), "-", color="w", zorder=3)
+                # ax.scatter(centerline[:, 0].tolist(), centerline[:, 1].tolist(), s=10, color="w", zorder=3)
+            # get the coordinate relative to agent pos
+            candidate_centerlines[ind] = centerline - agent_obs_traj[-1, :]
 
-    def get_future_traj(
+        return candidate_centerlines
+
+    def get_agent_future_traj(
         self,
         ax: Axes,
         cur_time: int,
@@ -242,16 +245,16 @@ def write_tf_record(args: Any) -> None:
         os.makedirs(f"{args.dataset_dir}../{args.prefix_tf_record}")
 
     print("Start rendering...")
-    # for i in range(args.starting_frame_ind, fomv.num):
-    for i in range(91648, 102400):
+    for i in range(args.starting_frame_ind, fomv.num):
+    # for i in range(91648, 102400):
         if (i+1) % 64 == 0:
             print(f"Processing {i}th frame")
         if i % FRAME_IN_SHARD == 0:
             shard_ind = int(i / FRAME_IN_SHARD)
             writer = tf.io.TFRecordWriter(f"{args.dataset_dir}/../{args.prefix_tf_record}/{shard_ind}_tf_record")
 
-        past_traj, future_traj = fomv.plot_log_one_at_a_time(avm, log_num=i)
-        example = convert_to_example(past_traj, future_traj)
+        past_traj, future_traj, center_lines, surr_past_pos = fomv.plot_log_one_at_a_time(avm, log_num=i)
+        example = convert_to_example(past_traj, future_traj, center_lines, surr_past_pos)
         writer.write(example.SerializeToString())
 
         if (i-shard_ind*FRAME_IN_SHARD) % (FRAME_IN_SHARD-1) == 0 and (not i == shard_ind*FRAME_IN_SHARD):
@@ -268,7 +271,7 @@ def main():
     parser.add_argument("--convert_tf_record", help="convert to tfrecord file or not",
                         default=True)
     parser.add_argument("--prefix_tf_record", help="folder name to save tfrecord files",
-                        default="tf_record_1")
+                        default="tf_record_new")
     parser.add_argument("--starting_frame_ind", type=int, help="which frame to start",
                         default=0)
     parser.add_argument("--save_image", help="save rendered image or not",

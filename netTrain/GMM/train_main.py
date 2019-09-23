@@ -10,6 +10,7 @@ from argoPrepare.load_tfrecord_argo import input_fn
 # from utils_custom.metrics import ADE_1S, FDE_1S, ADE_3S, FDE_3S
 from hparms import *
 
+
 NUM_EPOCHS = 50
 
 
@@ -70,7 +71,7 @@ def main():
                            input_ptraj_shape=(PAST_TIME_STEP*2, ),
                            node_num=2048,
                            gmm_comp=NUM_GAUSSIAN_COMPONENT,
-                           time_steps=NUM_TIME_SEQUENCE)
+                           time_steps=FUTURE_TIME_STEP)
 
     model.compile(optimizer=keras.optimizers.Adam(lr=lr_schedule(0)),
                   loss=log_likelihood_loss)
