@@ -10,7 +10,8 @@ from argoPrepare.load_tfrecord_argo import input_fn
 # from utils_custom.metrics import ADE_1S, FDE_1S, ADE_3S, FDE_3S
 from hparms import *
 
-NUM_EPOCHS = 10
+
+NUM_EPOCHS = 50
 
 
 def lr_schedule(epoch):
@@ -59,13 +60,13 @@ def main():
     ####################################################################################################################
     # Dataset
     data_dir = ['../../../data/argo/forecasting/train/tf_record/']
-    train_dataset = input_fn(is_training=True, data_dir=data_dir, batch_size=8, num_epochs=NUM_EPOCHS)
+    train_dataset = input_fn(is_training=True, data_dir=data_dir, batch_size=16, num_epochs=NUM_EPOCHS)
 
     data_dir = ['../../../data/argo/forecasting/val/tf_record/']
-    valid_dataset = input_fn(is_training=False, data_dir=data_dir, batch_size=8, num_epochs=NUM_EPOCHS)
+    valid_dataset = input_fn(is_training=False, data_dir=data_dir, batch_size=16, num_epochs=NUM_EPOCHS)
     ####################################################################################################################
     # Model
-    model = ResNet50V2_gmm(weights=None,
+    model = ResNet50V2_gmm(weights='../../../logs/GMM/checkpoints/20190920-133908weights001.h5',
                            input_img_shape=(IMAGE_WIDTH, IMAGE_HEIGHT, NUM_CHANNELS),
                            input_ptraj_shape=(PAST_TIME_STEP*2, ),
                            node_num=2048,
@@ -75,8 +76,8 @@ def main():
     model.compile(optimizer=keras.optimizers.Adam(lr=lr_schedule(0)),
                   loss=log_likelihood_loss)
 
-    history = model.fit(train_dataset, epochs=NUM_EPOCHS, steps_per_epoch=1, verbose=2, callbacks=callbacks,
-                        validation_data=valid_dataset, validation_steps=8)  # 630
+    history = model.fit(train_dataset, epochs=NUM_EPOCHS, steps_per_epoch=800, verbose=2, callbacks=callbacks,
+                        validation_data=valid_dataset, validation_steps=2505)  # 40127
 
     with open(logdir + '/trainHistory.json', 'w') as f:
         history.history['lr'] = [float(i) for i in (history.history['lr'])]
