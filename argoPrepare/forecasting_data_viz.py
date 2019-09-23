@@ -243,7 +243,7 @@ def write_tf_record(args: Any) -> None:
 
     print("Start rendering...")
     # for i in range(args.starting_frame_ind, fomv.num):
-    for i in range(9216, 51200):
+    for i in range(91648, 102400):
         if (i+1) % 64 == 0:
             print(f"Processing {i}th frame")
         if i % FRAME_IN_SHARD == 0:
