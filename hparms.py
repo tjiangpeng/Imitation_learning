@@ -1,7 +1,7 @@
 # input image size and future trajectory time sequence
 IMAGE_HEIGHT = 400  # 400, 384
 IMAGE_WIDTH = 400  # 400, 384
-NUM_CHANNELS = 3
+NUM_CHANNELS = 4
 FUTURE_TIME_STEP = 30
 PAST_TIME_STEP = 19
 SURR_TIME_STEP = 19

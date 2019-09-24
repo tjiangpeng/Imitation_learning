@@ -27,8 +27,8 @@ lrelu = lambda x: keras.activations.relu(x, alpha=0.1)
 
 
 def img_cord_to_real(x):
-    x = x * tf.constant(np.tile([1.0, -1.0], NUM_TIME_SEQUENCE), dtype=tf.float32) * 0.2
-    x = x + tf.constant(np.tile([-0.1 * IMAGE_WIDTH, 0.1 * IMAGE_HEIGHT], NUM_TIME_SEQUENCE), dtype=tf.float32)
+    x = x * tf.constant(np.tile([1.0, -1.0], FUTURE_TIME_STEP), dtype=tf.float32) * 0.2
+    x = x + tf.constant(np.tile([-0.1 * IMAGE_WIDTH, 0.1 * IMAGE_HEIGHT], FUTURE_TIME_STEP), dtype=tf.float32)
     x = keras.activations.linear(x)
     return x
 
@@ -317,8 +317,7 @@ def ResNet(stack_fn,
         x = keras.layers.Dense(classes, activation='linear', name='traj')(x)
         # x = keras.layers.LeakyReLU(alpha=0.1, name='img_cord')(x)
 
-        x = keras.layers.Lambda(img_cord_to_real)(x)
-
+        # x = keras.layers.Lambda(img_cord_to_real)(x)
         # x = keras.layers.LeakyReLU(alpha=0.1)(x)
     else:
         if pooling == 'avg':

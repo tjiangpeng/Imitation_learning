@@ -146,14 +146,15 @@ def parse_record(raw_record):
     surr_past_pos = tf.cast(surr_past_pos, tf.float32)
     surr_past_pos = tf.reshape(surr_past_pos, shape=[-1, (SURR_TIME_STEP+1)*2])
 
-    map = tf.image.decode_png(features['map'], channels=NUM_CHANNELS)
-    map.set_shape([IMAGE_HEIGHT, IMAGE_WIDTH, NUM_CHANNELS])
+    map = tf.image.decode_png(features['map'], channels=1)
+    map.set_shape([IMAGE_HEIGHT, IMAGE_WIDTH, 1])
     map = tf.cast(map, tf.float32)
 
     image = tf.py_func(render_past_traj, [map, past_traj, True], tf.float32)
     # image = tf.py_func(render_future_traj, [image, future_traj], tf.float32)
     image = tf.py_func(render_center_lines, [image, center_lines, clines_num, True], tf.float32)
     image = tf.py_func(render_surr, [image, surr_past_pos, True], tf.float32)
+    image.set_shape([IMAGE_HEIGHT, IMAGE_WIDTH, NUM_CHANNELS])
     # normalize image
     image = image / 255.0
 
