@@ -3,7 +3,8 @@ import cv2
 import tensorflow as tf
 import numpy as np
 from tensorflow import keras
-from argoData.load_tfrecord_argo import input_fn
+import argoData
+from argoData.load_tfrecord_argo import input_fn, cur_num
 from hparms import *
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -41,6 +42,8 @@ def main():
         #     k = cv2.waitKey(1)
         #     if k == 27:
         #         break
+
+        print(argoData.load_tfrecord_argo.cur_num)
 
 
 if __name__ == '__main__':
