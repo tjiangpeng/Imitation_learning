@@ -12,7 +12,7 @@ from utils_custom.utils_argo import agent_cord_to_image_cord
 # Constant
 ###############################################################################
 
-
+cur_num = 0
 
 ###############################################################################
 # Data processing
@@ -38,14 +38,28 @@ def render_past_traj(img, past_traj, sep=False, size=2):
     return img
 
 
-def render_future_traj(img, future_traj):
+def render_future_traj(img, past_traj, future_traj, viz, statistic):
 
-    for ind in range(FUTURE_TIME_STEP):
-        pos = np.array([future_traj[ind], future_traj[ind+FUTURE_TIME_STEP]])
-        pos = agent_cord_to_image_cord(pos)
+    if statistic:
+        global cur_num
+        fpos = np.reshape(future_traj, [2, -1])
+        ppos = np.reshape(past_traj, [2, -1])
+        pos = np.concatenate((fpos, ppos), axis=1)
+        pos = pos - np.mean(pos, axis=1).reshape([2, 1])
+        C = (pos @ pos.T) / pos.shape[1]
+        w, v = np.linalg.eig(C)
+        cur = abs(np.max(w)/np.min(w))
+        if cur < 1500:
+            cur_num = cur_num + 1
+            print(cur_num)
 
-        if 0 <= pos[0] < IMAGE_HEIGHT and 0 <= pos[1] < IMAGE_HEIGHT:
-            img[pos[1]][pos[0]] = (255.0, 0.0, 0.0)
+    if viz:
+        for ind in range(FUTURE_TIME_STEP):
+            pos = np.array([future_traj[ind], future_traj[ind+FUTURE_TIME_STEP]])
+            pos = agent_cord_to_image_cord(pos)
+
+            if 0 <= pos[0] < IMAGE_HEIGHT and 0 <= pos[1] < IMAGE_HEIGHT:
+                img[pos[1], pos[0], 1] = 255.0
     return img
 
 
@@ -151,7 +165,7 @@ def parse_record(raw_record):
     map = tf.cast(map, tf.float32)
 
     image = tf.py_func(render_past_traj, [map, past_traj, True], tf.float32)
-    # image = tf.py_func(render_future_traj, [image, future_traj], tf.float32)
+    image = tf.py_func(render_future_traj, [image, past_traj, future_traj, True, True], tf.float32)
     image = tf.py_func(render_center_lines, [image, center_lines, clines_num, True], tf.float32)
     image = tf.py_func(render_surr, [image, surr_past_pos, True], tf.float32)
     image.set_shape([IMAGE_HEIGHT, IMAGE_WIDTH, NUM_CHANNELS])

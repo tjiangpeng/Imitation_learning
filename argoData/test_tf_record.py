@@ -13,7 +13,7 @@ def main():
     keras.backend.clear_session()
     sess = tf.Session()
 
-    data_dir = ['../../data/argo/forecasting/train/test/']
+    data_dir = ['../../data/argo/forecasting/sample/tf_record_4_channel/']
 
     dataset = input_fn(is_training=False, data_dir=data_dir, batch_size=1)
     iterator = dataset.make_one_shot_iterator()
@@ -37,10 +37,10 @@ def main():
         cv2.imshow('past_traj', past_traj)
         cv2.imshow('clines', clines)
         cv2.imshow('surr', surr)
-        while True:
-            k = cv2.waitKey(1)
-            if k == 27:
-                break
+        # while True:
+        #     k = cv2.waitKey(1)
+        #     if k == 27:
+        #         break
 
 
 if __name__ == '__main__':
