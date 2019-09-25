@@ -128,14 +128,17 @@ Comparison
 ## Evaluation on argoverse validation dataset
 
 
-|                                                      | ADE (1s) | FDE (1s) | ADE (3s) | FDE (3s) |
-| ---------------------------------------------------- | -------- | -------- | -------- | -------- |
-| Benchmark [4]                                        | 0.68     | 1.20     | 2.25     | 4.67     |
-| I + Resnet -> traj pos                               | 0.73     | 1.22     | 2.14     | 4.65     |
-| I + clines + Resnet -> traj pos                      | 0.7269 | 1.2045 | 2.0878 | 4.5257 |
-| I + past pos + Resnet -> traj pos                    | 0.64     | 1.09     | 2.05     | 4.64     |
-| I + past pose + center lines + Resnet -> traj pos    | 0.64     | 1.09     | 2.06     | 4.67     |
-| I + past pose(dropout) + clines + Resnet -> traj pos | 0.72     | 1.21     | 2.17     | 4.78     |
+|                                                      | ADE (1s) | FDE (1s) | ADE (3s) | FDE (3s) | Train # |
+| ---------------------------------------------------- | -------- | -------- | -------- | -------- | ---------------------------------------------------- |
+| Benchmark [4]                                        | 0.68     | 1.20     | 2.25     | 4.67     |  |
+| I + Resnet -> traj pos                               | 0.73     | 1.22     | 2.14     | 4.65     |  |
+| I + clines + Resnet -> traj pos                      | 0.7269 | 1.2045 | 2.0878 | 4.5257 |  |
+| I + past pos + Resnet -> traj pos                    | 0.64     | 1.09     | 2.05     | 4.64     |  |
+| I + past pose + center lines + Resnet -> traj pos    | 0.64     | 1.09     | 2.06     | 4.67     |  |
+| I + past pose(dropout) + clines + Resnet -> traj pos | 0.72     | 1.21     | 2.17     | 4.78     |  |
+|  |  |  |  |  |  |
+| I (4 channels)(map+surr+ego+clines) | 0.7257 | 1.2109 | 2.1453 | 4.6727 | 20190924-104353 |
+| I (6 channels)(3map+surr+ego+clines) |  |  |  |  |  |
 
 
 
@@ -183,4 +186,4 @@ Loss is to minimize the negative log-likelihood of the ground truth future locat
 
 [3] Hong, J., Sapp, B. and Philbin, J., 2019. Rules of the Road: Predicting Driving Behavior with a Convolutional Model of Semantic Interactions. In *Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition* (pp. 8454-8462).
 
-[4] Argoverse: 3D Tracking and Forecasting with Rich Maps 
+[4] Argoverse: 3D Tracking and Forecasting with Rich Maps  
