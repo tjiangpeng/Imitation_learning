@@ -49,7 +49,8 @@ def render_future_traj(img, past_traj, future_traj, viz, statistic):
         C = (pos @ pos.T) / pos.shape[1]
         w, v = np.linalg.eig(C)
         cur = abs(np.max(w)/np.min(w))
-        if cur < 1500:
+        # print(cur)
+        if cur < 2000:
             cur_num = cur_num + 1
             print(cur_num)
 
@@ -166,9 +167,9 @@ def parse_record(raw_record):
 
     image = tf.py_func(render_past_traj, [map, past_traj, True], tf.float32)
     image = tf.py_func(render_future_traj, [image, past_traj, future_traj, True, True], tf.float32)
-    image = tf.py_func(render_center_lines, [image, center_lines, clines_num, True], tf.float32)
-    image = tf.py_func(render_surr, [image, surr_past_pos, True], tf.float32)
-    image.set_shape([IMAGE_HEIGHT, IMAGE_WIDTH, NUM_CHANNELS])
+    # image = tf.py_func(render_center_lines, [image, center_lines, clines_num, True], tf.float32)
+    # image = tf.py_func(render_surr, [image, surr_past_pos, True], tf.float32)
+    image.set_shape([IMAGE_HEIGHT, IMAGE_WIDTH, 2])
     # normalize image
     image = image / 255.0
 
