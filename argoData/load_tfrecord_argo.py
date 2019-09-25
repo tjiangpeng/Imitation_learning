@@ -12,8 +12,8 @@ from utils_custom.utils_argo import agent_cord_to_image_cord
 # Constant
 ###############################################################################
 
-cur_num = 0
-
+cur_all = np.zeros([210000])
+cur_ind = 0
 ###############################################################################
 # Data processing
 ###############################################################################
@@ -41,7 +41,7 @@ def render_past_traj(img, past_traj, sep=False, size=2):
 def render_future_traj(img, past_traj, future_traj, viz, statistic):
 
     if statistic:
-        global cur_num
+        global cur_all, cur_ind
         fpos = np.reshape(future_traj, [2, -1])
         ppos = np.reshape(past_traj, [2, -1])
         pos = np.concatenate((fpos, ppos), axis=1)
@@ -49,10 +49,10 @@ def render_future_traj(img, past_traj, future_traj, viz, statistic):
         C = (pos @ pos.T) / pos.shape[1]
         w, v = np.linalg.eig(C)
         cur = abs(np.max(w)/np.min(w))
-        # print(cur)
-        if cur < 2000:
-            cur_num = cur_num + 1
-            print(cur_num)
+
+        print(cur)
+        cur_all[cur_ind] = cur
+        cur_ind = cur_ind + 1
 
     if viz:
         for ind in range(FUTURE_TIME_STEP):
