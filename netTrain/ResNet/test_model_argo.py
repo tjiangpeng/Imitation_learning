@@ -4,10 +4,11 @@ import cv2
 import tensorflow as tf
 import numpy as np
 from tensorflow import keras
-from argoPrepare.load_tfrecord_argo import input_fn
+# from argoPrepare.load_tfrecord_argo import input_fn
+from argoData.load_tfrecord_argo import input_fn
 from netTrain.ResNet.net_model import ResNet50V2, ResNet50V2_fc
 from hparms import *
-from utils_custom.metrics import FDE_1S, FDE_3S, ADE_1S, ADE_3S
+from utils_custom.utils_argo import FDE_1S, FDE_3S, ADE_1S, ADE_3S, agent_cord_to_image_cord
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,4"  # specify which GPU(s) to be used
@@ -17,7 +18,7 @@ def main():
     keras.backend.clear_session()
     sess = tf.Session()
 
-    dataset = input_fn(is_training=False, data_dir=['../../../data/argo/forecasting/val/tf_record/'], batch_size=1)
+    dataset = input_fn(is_training=True, data_dir=['../../../data/argo/forecasting/train/tf_record_4_channel/'], batch_size=1)
     iterator = dataset.make_one_shot_iterator()
     image_batch, traj_batch = iterator.get_next()
 
@@ -32,8 +33,8 @@ def main():
     #                       classes=NUM_TIME_SEQUENCE*2)
 
     # model = keras.utils.multi_gpu_model(model, gpus=4)
-    # model.load_weights('../../../logs/ResNet/checkpoints/20190918-093730weights039.h5')
-    model.load_weights('new_model.h5')
+    model.load_weights('../../../logs/ResNet/checkpoints/20190924-104353weights025.h5')
+    # model.load_weights('new_model.h5')
 
     model.compile(optimizer=keras.optimizers.Adam(),
                   loss='mse',
@@ -47,7 +48,6 @@ def main():
     # print("%s: %.2f" % (model.metrics_names[4], scores[4]))
     # print("%s: %.2f" % (model.metrics_names[5], scores[5]))
 
-    # outVideo = cv2.VideoWriter('out.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 10, (101, 115))
     for i in range(10000):
         im, la = sess.run([image_batch, traj_batch])
         y = model.predict(im)
@@ -56,36 +56,26 @@ def main():
         image = image * 255.0
         image = image.astype(np.uint8)
 
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-        la[0] = la[0] / 0.2
-        y[0] = y[0] / 0.2
         for ind in range(FUTURE_TIME_STEP):
-            pos_gt = la[0][2*ind:2*ind+2]
-            pos_pred = y[0][2*ind:2*ind+2]
+            pos_gt = la[0, [ind, FUTURE_TIME_STEP+ind]]
+            pos_pred = y[0, [ind, FUTURE_TIME_STEP+ind]]
 
-            pos_gt[1] = pos_gt[1] * -1
-            pos_gt = pos_gt + [IMAGE_WIDTH/2, IMAGE_HEIGHT/2]
-            pos_gt = pos_gt.astype(np.int)
-
-            pos_pred[1] = pos_pred[1] * -1
-            pos_pred = pos_pred + [IMAGE_WIDTH/2, IMAGE_HEIGHT/2]
-            pos_pred = pos_pred.astype(np.int)
+            pos_gt = agent_cord_to_image_cord(pos_gt)
+            pos_pred = agent_cord_to_image_cord(pos_pred)
 
             if 0 <= pos_gt[0] < IMAGE_HEIGHT and 0 <= pos_gt[1] < IMAGE_HEIGHT:
-                image[pos_gt[1]][pos_gt[0]] = (0, 0, 255)
+                image[pos_gt[1], pos_gt[0], 1] = 100
             if 0 <= pos_pred[0] < IMAGE_HEIGHT and 0 <= pos_pred[1] < IMAGE_HEIGHT:
-                image[pos_pred[1]][pos_pred[0]] = (0, 255, 0)
-        cv2.imshow('image', image)
-
-        # outVideo.write(cropImg)
+                image[pos_pred[1], pos_pred[0], 1] = 255
+        cv2.imshow('image', image[:,:,0:3])
 
         while True:
             k = cv2.waitKey(1)
             if k == 27:
                 break
         print(i)
-    # outVideo.release()
     sess.close()
 
     pass

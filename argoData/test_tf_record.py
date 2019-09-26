@@ -14,15 +14,18 @@ def main():
     keras.backend.clear_session()
     sess = tf.Session()
 
-    data_dir = ['../../data/argo/forecasting/sample/tf_record_4_channel/']
+    data_dir = ['../../data/argo/forecasting/train/tf_record_4_channel/']
 
-    dataset = input_fn(is_training=False, data_dir=data_dir, batch_size=1)
+    dataset = input_fn(is_training=True, data_dir=data_dir, batch_size=1)
     iterator = dataset.make_one_shot_iterator()
     image_batch, future_traj_batch = iterator.get_next()
 
+    i = 0
     while True:
         try:
             im, ftraj = sess.run([image_batch, future_traj_batch])
+            # print(i)
+            i = i+1
         except tf.errors.OutOfRangeError:
             np.save('cur.npy', argoData.load_tfrecord_argo.cur_all)
             break
@@ -30,21 +33,22 @@ def main():
         # print("++++++++++++++")
         # print(ftraj[0])
 
-        # im = im["input_1"][0] * 255.0
-        # im = im.astype(np.uint8)
-        # image = im[:, :, 0]
-        #
-        # past_traj = im[:, :, 1]
+        im = im["input_1"][0] * 255.0
+        im = im.astype(np.uint8)
+        image = im[:, :, 0]
+
+        past_traj = im[:, :, 1]
         # clines = im[:, :, 2]
         # surr = im[:, :, 3]
-        # cv2.imshow('image', image)
-        # cv2.imshow('past_traj', past_traj)
+        cv2.imshow('image', image)
+        cv2.imshow('past_traj', past_traj)
+        # cv2.imwrite(str(argoData.load_tfrecord_argo.cur) + '.png', past_traj)
         # cv2.imshow('clines', clines)
         # cv2.imshow('surr', surr)
-        # while True:
-        #     k = cv2.waitKey(1)
-        #     if k == 27:
-        #         break
+        while True:
+            k = cv2.waitKey(1)
+            if k == 27:
+                break
 
 
 if __name__ == '__main__':

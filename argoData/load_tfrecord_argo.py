@@ -41,7 +41,7 @@ def render_past_traj(img, past_traj, sep=False, size=2):
 def render_future_traj(img, past_traj, future_traj, viz, statistic):
 
     if statistic:
-        global cur_all, cur_ind
+        global cur_all, cur_ind, cur
         fpos = np.reshape(future_traj, [2, -1])
         ppos = np.reshape(past_traj, [2, -1])
         pos = np.concatenate((fpos, ppos), axis=1)
@@ -166,10 +166,10 @@ def parse_record(raw_record):
     map = tf.cast(map, tf.float32)
 
     image = tf.py_func(render_past_traj, [map, past_traj, True], tf.float32)
-    image = tf.py_func(render_future_traj, [image, past_traj, future_traj, True, True], tf.float32)
-    # image = tf.py_func(render_center_lines, [image, center_lines, clines_num, True], tf.float32)
-    # image = tf.py_func(render_surr, [image, surr_past_pos, True], tf.float32)
-    image.set_shape([IMAGE_HEIGHT, IMAGE_WIDTH, 2])
+    # image = tf.py_func(render_future_traj, [image, past_traj, future_traj, True, True], tf.float32)
+    image = tf.py_func(render_center_lines, [image, center_lines, clines_num, True], tf.float32)
+    image = tf.py_func(render_surr, [image, surr_past_pos, True], tf.float32)
+    image.set_shape([IMAGE_HEIGHT, IMAGE_WIDTH, NUM_CHANNELS])
     # normalize image
     image = image / 255.0
 

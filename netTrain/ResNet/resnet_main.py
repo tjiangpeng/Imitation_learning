@@ -8,7 +8,7 @@ from netTrain.ResNet.net_model import ResNet50V2, ResNet50V2_fc
 # from argoPrepare.load_tfrecord_argo import input_fn
 from argoData.load_tfrecord_argo import input_fn
 # from utils_custom.load_tfrecord import input_fn
-from utils_custom.metrics import ADE_1S, FDE_1S, ADE_3S, FDE_3S
+from utils_custom.utils_argo import ADE_1S, FDE_1S, ADE_3S, FDE_3S, ADE_FDE_loss
 from hparms import *
 
 # os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -29,14 +29,14 @@ def lr_schedule(epoch):
     # Returns
         lr (float32): learning rate
     """
-    lr = 1e-7
+    lr = 1e-6
     if epoch > 30:
         lr *= 0.5e-3
     elif epoch > 25:
         lr *= 1e-3
     elif epoch > 20:
         lr *= 1e-2
-    elif epoch > 10:
+    elif epoch > 5:
         lr *= 1e-1
     print('Learning rate: ', lr)
     return lr
@@ -83,10 +83,10 @@ def main():
     #                       classes=NUM_TIME_SEQUENCE*2)
 
     # model = keras.utils.multi_gpu_model(model, gpus=4)
-    model.load_weights('../../../logs/ResNet/checkpoints/20190924-104353weights025.h5')
+    model.load_weights('../../../logs/ResNet/checkpoints/20190925-201705weights028.h5')
 
-    model.compile(optimizer=keras.optimizers.SGD(lr=lr_schedule(0)),
-                  loss='mse',
+    model.compile(optimizer=keras.optimizers.Adam(lr=lr_schedule(0)),
+                  loss=ADE_FDE_loss,
                   metrics=[ADE_1S, FDE_1S, ADE_3S, FDE_3S])
 
     history = model.fit(train_dataset, epochs=NUM_EPOCHS, steps_per_epoch=1600, verbose=2, callbacks=callbacks,

@@ -139,6 +139,11 @@ Comparison
 |  |  |  |  |  |  |
 | I (4 channels)(map+surr+ego+clines) | 0.7257 | 1.2109 | 2.1453 | 4.6727 | 20190924-104353 |
 | I (6 channels)(3map+surr+ego+clines) |  |  |  |  |  |
+|  | | | | | |
+| I (4 channels) + loss (ade3s+0.67fde3s+0.67fde1s) | 0.6547 | 1.0929 | 1.9947 | 4.4262 | 20190925-201705 |
+|  | | | | | |
+| I (4 c) + past pos + loss (ade3s+fde3s+0.33fde1s+0.67fde2s) | | | | | |
+|  | | | | | |
 
 
 
