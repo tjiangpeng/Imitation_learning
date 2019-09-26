@@ -11,14 +11,14 @@ from hparms import *
 from utils_custom.utils_argo import FDE_1S, FDE_3S, ADE_1S, ADE_3S, agent_cord_to_image_cord
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,4"  # specify which GPU(s) to be used
+os.environ["CUDA_VISIBLE_DEVICES"] = ""  # specify which GPU(s) to be used
 
 
 def main():
     keras.backend.clear_session()
     sess = tf.Session()
 
-    dataset = input_fn(is_training=True, data_dir=['../../../data/argo/forecasting/train/tf_record_4_channel/'], batch_size=1)
+    dataset = input_fn(is_training=True, data_dir=['../../../data/argo/forecasting/val/tf_record_4_channel/'], batch_size=1)
     iterator = dataset.make_one_shot_iterator()
     image_batch, traj_batch = iterator.get_next()
 
@@ -33,7 +33,7 @@ def main():
     #                       classes=NUM_TIME_SEQUENCE*2)
 
     # model = keras.utils.multi_gpu_model(model, gpus=4)
-    model.load_weights('../../../logs/ResNet/checkpoints/20190924-104353weights025.h5')
+    model.load_weights('../../../logs/ResNet/checkpoints/20190925-201705weights028.h5')
     # model.load_weights('new_model.h5')
 
     model.compile(optimizer=keras.optimizers.Adam(),
@@ -69,7 +69,7 @@ def main():
                 image[pos_gt[1], pos_gt[0], 1] = 100
             if 0 <= pos_pred[0] < IMAGE_HEIGHT and 0 <= pos_pred[1] < IMAGE_HEIGHT:
                 image[pos_pred[1], pos_pred[0], 1] = 255
-        cv2.imshow('image', image[:,:,0:3])
+        cv2.imshow('image', image[:, :, [0, 1, 3]])
 
         while True:
             k = cv2.waitKey(1)

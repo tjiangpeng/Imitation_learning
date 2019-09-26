@@ -27,6 +27,16 @@ def FDE_3S(y_true, y_pred):
     return tf.math.reduce_mean(tf.math.sqrt(tf.reduce_sum(df * df, axis=1)))
 
 
+def FDE_2S(y_true, y_pred):
+    # y_pred_final = y_pred[:, 58:60]
+    # y_true_final = y_true[:, 58:60]
+    y_pred_final = tf.gather(y_pred, [19, 49], axis=1)
+    y_true_final = tf.gather(y_true, [19, 49], axis=1)
+    df = y_true_final - y_pred_final
+
+    return tf.math.reduce_mean(tf.math.sqrt(tf.reduce_sum(df * df, axis=1)))
+
+
 def FDE_1S(y_true, y_pred):
     # y_pred_1s = y_pred[:, 18:20]
     # y_true_1s = y_true[:, 18:20]
@@ -80,19 +90,11 @@ def ADE_FDE_loss(y_true, y_pred):
     true_y = y_true[:, 30:60]
     pred_y = y_pred[:, 30:60]
 
-    ade_3s = tf.math.reduce_mean(
-        tf.math.reduce_mean(tf.math.sqrt((true_x - pred_x)**2 + (true_y - pred_y)**2), axis=1))
+    de = tf.math.reduce_mean(tf.math.sqrt((true_x - pred_x)**2 + (true_y - pred_y)**2), axis=0)
 
-    y_pred_final = tf.gather(y_pred, [29, 59], axis=1)
-    y_true_final = tf.gather(y_true, [29, 59], axis=1)
-    df = y_true_final - y_pred_final
+    fde_1s = de[9]
+    fde_2s = de[19]
+    fde_3s = de[29]
+    ade_3s = tf.math.reduce_mean(de)
 
-    fde_3s = tf.math.reduce_mean(tf.math.sqrt(tf.reduce_sum(df * df, axis=1)))
-
-    y_pred_1s = tf.gather(y_pred, [9, 39], axis=1)
-    y_true_1s = tf.gather(y_true, [9, 39], axis=1)
-    df = y_true_1s - y_pred_1s
-
-    fde_1s = tf.math.reduce_mean(tf.math.sqrt(tf.reduce_sum(df * df, axis=1)))
-
-    return ade_3s + 0.67 * fde_3s + 0.67 * fde_1s
+    return ade_3s + 0.3 * fde_1s + 0.63 * fde_2s + 0.96 * fde_3s
