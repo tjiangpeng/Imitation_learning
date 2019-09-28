@@ -100,3 +100,13 @@ def ADE_FDE_loss(y_true, y_pred):
     # return ade_3s + 0.3 * fde_1s + fde_2s + 1.5 * fde_3s
 
     return fde_1s + fde_2s + fde_3s
+
+
+def ADE_3S_array(y_true: np.ndarray, y_pred: np.ndarray):
+
+    true_x = y_true[:, 0:30]
+    pred_x = y_pred[:, 0:30]
+    true_y = y_true[:, 30:60]
+    pred_y = y_pred[:, 30:60]
+
+    return np.mean(np.sqrt((true_x - pred_x)**2 + (true_y - pred_y)**2), axis=1)
