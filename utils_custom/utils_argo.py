@@ -89,9 +89,11 @@ def ADE_FDE_loss(y_true, y_pred):
     fde_1s = de[9]
     fde_2s = de[19]
     fde_3s = de[29]
-    ade_3s = tf.math.reduce_mean(de)
+    # ade_3s = tf.math.reduce_mean(de)
 
-    return ade_3s + 0.3 * fde_1s + 0.63 * fde_2s + 0.96 * fde_3s
+    # return ade_3s + 0.3 * fde_1s + fde_2s + 1.5 * fde_3s
+
+    return fde_1s + fde_2s + fde_3s
 
 
 def metrics_array(y_true: np.ndarray, y_pred: np.ndarray):
