@@ -138,12 +138,12 @@ Comparison
 | I + past pose(dropout) + clines + Resnet -> traj pos | 0.72     | 1.21     | 2.17     | 4.78     |  |
 |  |  |  |  |  |  |
 | I (4 channels)(map+surr+ego+clines) | 0.7257 | 1.2109 | 2.1453 | 4.6727 | 20190924-104353 |
-| I (6 channels)(3map+surr+ego+clines) |  |  |  |  |  |
+| I (6 channels)(3map+surr+ego+clines) | 0.7472 | 1.2438 | 2.1498 | 4.6450 | 20190924-103844 |
 |  | | | | | |
 | I (4 channels) + loss (ade3s+0.67fde3s+0.67fde1s) | 0.6547 | 1.0929 | 1.9947 | 4.4262 | 20190925-201705 |
 |  | | | | | |
-| I (4 c) + past pos + loss (ade3s+fde3s+0.33fde1s+0.67fde2s) | | | | | |
-|  | | | | | |
+| I (4 c) + past pos + loss (ade3s+0.3fde1s+0.63fde2s+0.96fde3s) | 0.6136 | 1.0320 | 1.938 | 4.3666 (2.4242, fde2s) | 20190926-115346 |
+| I (4c) + past pos + loss (ade3s+0.3fde1s+fde2s+1.5fde3s) | 0.6103 | 1.0250 | 1.9214 | 4.3245 (2.4013, fde2s) | 20190927-083623 |
 
 
 
