@@ -9,7 +9,8 @@ from netTrain.ResNet.net_model import ResNet50V2, ResNet50V2_fc
 # from argoPrepare.load_tfrecord_argo import input_fn
 from argoData.load_tfrecord_argo import input_fn
 # from utils_custom.load_tfrecord import input_fn
-from utils_custom.utils_argo import ADE_1S, FDE_1S, ADE_3S, FDE_3S, ADE_FDE_loss, ADE_3S_array
+from utils_custom.utils_argo import ADE_1S, FDE_1S, ADE_2S, FDE_2S, ADE_3S, FDE_3S, ADE_FDE_loss, metrics_array
+from netTrain.Boost.boost_sampler import HardSampleReservoir
 from hparms import *
 
 # ==============================================================================
@@ -18,95 +19,10 @@ from hparms import *
 # os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 # os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"  # specify which GPU(s) to be used
 
-NUM_EPOCHS = 10
-STEPS_PER_EPOCH = 100
-BATCH_SIZE = 8
-HARD_SAMPLE_RATIO = 3
-RESERVOIR_MAX_SIZE = BATCH_SIZE * 50
 
-NORMAL_TRAIN_EPOCH = 0
-LOSS_THRESHOLD = 1.0
-
-
-class HardSampleReservoir:
-    def __init__(self):
-        self.input_data = None
-        self.output_data = None
-        self.size = 0
-        self.input_buffer = None
-        self.output_buffer = None
-
-    def append(self, dt, gt, ind: list):
-        if self.size:
-            self.input_data['input_1'] = np.concatenate((self.input_data['input_1'], dt['input_1'][ind, :, :, :]), axis=0)
-            self.input_data['input_2'] = np.concatenate((self.input_data['input_2'], dt['input_2'][ind, :]), axis=0)
-            self.output_data = np.concatenate((self.output_data, gt[ind, :]), axis=0)
-        else:
-            self.input_data = {'input_1': dt['input_1'][ind, :, :, :],
-                               'input_2': dt['input_2'][ind, :]}
-            self.output_data = gt[ind, :]
-
-        if self.output_data.shape[0] > RESERVOIR_MAX_SIZE:
-            self.input_data['input_1'] = self.input_data['input_1'][0:RESERVOIR_MAX_SIZE, :, :, :]
-            self.input_data['input_2'] = self.input_data['input_2'][0:RESERVOIR_MAX_SIZE, :]
-            self.output_data = self.output_data[0:RESERVOIR_MAX_SIZE, :]
-
-        self.size = self.output_data.shape[0]
-        print("----------------------------")
-        print("Reservoir size")
-        print(self.size)
-
-    def pop(self):
-        dt = {'input_1': self.input_buffer['input_1'][-BATCH_SIZE::, :, :, :],
-              'input_2': self.input_buffer['input_2'][-BATCH_SIZE::, :]}
-        gt = self.output_buffer[-BATCH_SIZE::, :]
-
-        self.input_buffer['input_1'] = self.input_buffer['input_1'][0:-BATCH_SIZE, :, :, :]
-        self.input_buffer['input_2'] = self.input_buffer['input_2'][0:-BATCH_SIZE, :]
-        self.output_buffer = self.output_buffer[0:-BATCH_SIZE, :]
-
-        # print("----------------------------")
-        # print("Pop size")
-        # print(gt.shape[0])
-        # print("Buffer size")
-        # print(self.output_buffer.shape[0])
-        return dt, gt
-
-    def push_to_buffer(self, dt, gt):
-        self.input_buffer = dt
-        self.output_buffer = gt
-        if self.size:
-            # Concatenate the normal data and hard samples as buffer
-            self.input_buffer['input_1'] = np.concatenate(
-                (self.input_buffer['input_1'],
-                 self.input_data['input_1'][-BATCH_SIZE*HARD_SAMPLE_RATIO::, :, :, :]), axis=0
-            )
-            self.input_buffer['input_2'] = np.concatenate(
-                (self.input_buffer['input_2'],
-                 self.input_data['input_2'][-BATCH_SIZE*HARD_SAMPLE_RATIO::, :]), axis=0
-            )
-            self.output_buffer = np.concatenate(
-                (self.output_buffer, self.output_data[-BATCH_SIZE*HARD_SAMPLE_RATIO::, :]), axis=0
-            )
-            # Remove the concatenated hard samples from data reservoir
-            self.input_data['input_1'] = self.input_data['input_1'][0:-BATCH_SIZE * HARD_SAMPLE_RATIO, :, :, :]
-            self.input_data['input_2'] = self.input_data['input_2'][0:-BATCH_SIZE * HARD_SAMPLE_RATIO, :]
-            self.output_data = self.output_data[0:-BATCH_SIZE * HARD_SAMPLE_RATIO, :]
-            self.size = self.output_data.shape[0]
-
-            # Shuffle the buffer
-            order = np.arange(self.output_buffer.shape[0])
-            np.random.shuffle(order)
-            order = order.tolist()
-            self.input_buffer['input_1'] = self.input_buffer['input_1'][order, :, :, :]
-            self.input_buffer['input_2'] = self.input_buffer['input_2'][order, :]
-            self.output_buffer = self.output_buffer[order, :]
-
-        # print("----------------------------")
-        # print("Buffer size")
-        # print(self.output_buffer.shape[0])
-        # print("Reservoir size")
-        # print(self.size)
+# ==============================================================================
+# -- Function -----------------------------------------------------------------
+# ==============================================================================
 
 
 def lr_schedule(epoch):
@@ -139,17 +55,10 @@ def main():
     sess = tf.Session()
 
     logtime = datetime.now().strftime("%Y%m%d-%H%M%S")
-    logdir = "../../../logs/ResNet/scalars/" + logtime
+    # logdir = "../../../logs/Boost/scalars/" + logtime
 
-    # Tensorboard
-    tensorboard_callback = keras.callbacks.TensorBoard(log_dir=logdir)
-    # Save model weight
-    checkpoint_callback = keras.callbacks.ModelCheckpoint("../../../logs/ResNet/checkpoints/" + logtime + "weights{epoch:03d}.h5",
-                                                          monitor='val_loss', save_best_only=True, mode='min',
-                                                          save_weights_only=True)
-
-    lr_scheduler = keras.callbacks.LearningRateScheduler(lr_schedule)
-    callbacks = [tensorboard_callback, checkpoint_callback, lr_scheduler]
+    # # Tensorboard
+    # tensorboard_callback = keras.callbacks.TensorBoard(log_dir=logdir)
 
     # ==============================================================================
     # -- Dataset -----------------------------------------------------------------
@@ -179,12 +88,13 @@ def main():
 
     model.compile(optimizer=keras.optimizers.Adam(lr=lr_schedule(0)),
                   loss=ADE_3S,
-                  metrics=[ADE_1S, FDE_1S, ADE_3S, FDE_3S])
+                  metrics=[ADE_1S, ADE_2S, ADE_3S, FDE_1S, FDE_2S, FDE_3S])
 
     # ==============================================================================
     # -- Training -----------------------------------------------------------------
     # ==============================================================================
     reservior = HardSampleReservoir()
+    min_loss = 10000
     for epoch in range(NUM_EPOCHS):
         print(f"Epoch: {epoch}/{NUM_EPOCHS}")
         model.optimizer.lr = lr_schedule(epoch)
@@ -196,36 +106,48 @@ def main():
             re = [0, 0]  # result of training loss and metrics
             if epoch < NORMAL_TRAIN_EPOCH:
                 out = model.train_on_batch(dt, gt)
-                re = [re[0] + out, re[1] + gt.shape[0]]
+                re = [re[0] + np.array(out)*gt.shape[0], re[1] + gt.shape[0]]
             else:
                 reservior.push_to_buffer(dt, gt)
-                for i in range(1+HARD_SAMPLE_RATIO):
+                for i in range(1+HARD_SAMPLE_RATIO):  # n*Hard samples + 1*normal samples
                     dt, gt = reservior.pop()
                     if gt.size:
                         out = model.train_on_batch(dt, gt)
-                        re = [re[0] + out, re[1] + gt.shape[0]]
+                        re = [re[0] + np.array(out)*gt.shape[0], re[1] + gt.shape[0]]
 
                         # Find the hard samples
                         y_pred = model.predict(dt)
-                        loss = ADE_3S_array(gt, y_pred)
-                        ind = np.where(loss > LOSS_THRESHOLD)[0]
+                        loss = metrics_array(gt, y_pred)
+                        ind = []
+                        for ii in range(loss.shape[0]):
+                            if loss[ii, 0] > valid_scores[1] or loss[ii, 1] > valid_scores[2] \
+                                    or loss[ii, 2] > valid_scores[3] or loss[ii, 3] > valid_scores[4] \
+                                    or loss[ii, 4] > valid_scores[5] or loss[ii, 5] > valid_scores[6]:
+                                ind.append(ii)
 
                         # Push the hard samples into reservoir
-                        reservior.append(dt, gt, ind.tolist())
+                        reservior.append(dt, gt, ind)
 
-        # TODO: Print the training result
-        print(f"--- Training time: {time.time()-start_time} ---")
+        # Print the training result
+        print(f"--- Training time: {int(time.time()-start_time)} second ---")
+        for i, score in enumerate(re[0]):
+            print(f"--{model.metrics_names[i]}: {score/re[1]}", end=' ')
+        print("")
 
-        # TODO: Evaluate the validation dataset
+        # Evaluate the validation dataset
+        valid_scores = model.evaluate(valid_dataset, verbose=0, steps=10)
+        for i, score in enumerate(valid_scores):
+            if i == 0:
+                print(f"--valid_loss: {valid_scores[0]}", end=' ')
+            else:
+                print(f"--{model.metrics_names[i]}: {score}", end=' ')
+        print("")
 
-        # TODO: Save model
-
-    # history = model.fit(train_dataset, epochs=NUM_EPOCHS, steps_per_epoch=1600, verbose=2, callbacks=callbacks,
-    #                     validation_data=valid_dataset, validation_steps=2507)  # 40127
-    #
-    # with open(logdir + '/trainHistory.json', 'w') as f:
-    #     history.history['lr'] = [float(i) for i in (history.history['lr'])]
-    #     json.dump(history.history, f)
+        # Save the best model according to validation result
+        if valid_scores[0] < min_loss:
+            if epoch > NORMAL_TRAIN_EPOCH:
+                model.save_weights(f"../../../logs/Boost/checkpoints/{logtime}weights{epoch:03d}.h5")
+            min_loss = valid_scores[0]
 
 
 if __name__ == '__main__':
