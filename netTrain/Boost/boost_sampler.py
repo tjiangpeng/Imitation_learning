@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 from hparms import *
 
@@ -11,7 +13,8 @@ class HardSampleReservoir:
         self.output_buffer = None
 
     def append(self, dt, gt, ind: list):
-        if not ind:
+        start_time = time.time()
+        if ind:
             if self.size:
                 self.input_data['input_1'] = np.concatenate((dt['input_1'][ind, :, :, :], self.input_data['input_1']), axis=0)
                 self.input_data['input_2'] = np.concatenate((dt['input_2'][ind, :], self.input_data['input_2']), axis=0)
@@ -26,12 +29,14 @@ class HardSampleReservoir:
                 self.input_data['input_2'] = self.input_data['input_2'][0:RESERVOIR_MAX_SIZE, :]
                 self.output_data = self.output_data[0:RESERVOIR_MAX_SIZE, :]
 
-        self.size = self.output_data.shape[0]
-        print("----------------------------")
-        print("Reservoir size")
-        print(self.size)
+            self.size = self.output_data.shape[0]
+#        print("----------------------------")
+#        print("Reservoir size")
+#        print(self.size)
+        print(f"--- Append time: {int(time.time() - start_time)} second ---")
 
     def pop(self):
+        start_time = time.time()
         dt = {'input_1': self.input_buffer['input_1'][-BATCH_SIZE::, :, :, :],
               'input_2': self.input_buffer['input_2'][-BATCH_SIZE::, :]}
         gt = self.output_buffer[-BATCH_SIZE::, :]
@@ -45,9 +50,13 @@ class HardSampleReservoir:
         # print(gt.shape[0])
         # print("Buffer size")
         # print(self.output_buffer.shape[0])
+
+        print(f"--- Pop time: {int(time.time() - start_time)} second ---")
         return dt, gt
 
     def push_to_buffer(self, dt, gt):
+        start_time = time.time()
+
         self.input_buffer = dt
         self.output_buffer = gt
         if self.size:
@@ -77,8 +86,10 @@ class HardSampleReservoir:
             self.input_buffer['input_2'] = self.input_buffer['input_2'][order, :]
             self.output_buffer = self.output_buffer[order, :]
 
-        print("----------------------------")
-        print("Buffer size")
-        print(self.output_buffer.shape[0])
-        print("Reservoir size")
-        print(self.size)
+#        print("----------------------------")
+#        print("Buffer size")
+#        print(self.output_buffer.shape[0])
+#        print("Reservoir size")
+#        print(self.size)
+
+        print(f"--- Push buffer time: {int(time.time() - start_time)} second ---")

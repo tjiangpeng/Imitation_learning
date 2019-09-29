@@ -8,10 +8,10 @@ from tensorflow import keras
 from argoData.load_tfrecord_argo import input_fn
 from netTrain.ResNet.net_model import ResNet50V2, ResNet50V2_fc
 from hparms import *
-from utils_custom.utils_argo import FDE_1S, FDE_3S, ADE_1S, ADE_3S, agent_cord_to_image_cord
+from utils_custom.utils_argo import FDE_1S, FDE_3S, ADE_1S, ADE_3S, ADE_3S_array, agent_cord_to_image_cord
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = ""  # specify which GPU(s) to be used
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"  # specify which GPU(s) to be used
 
 
 def main():
@@ -23,17 +23,17 @@ def main():
     image_batch, traj_batch = iterator.get_next()
 
     # Model
-    model = ResNet50V2(include_top=True, weights=None,
-                       input_shape=(IMAGE_WIDTH, IMAGE_HEIGHT, NUM_CHANNELS),
-                       classes=FUTURE_TIME_STEP*2)
-    # model = ResNet50V2_fc(weights=None,
-    #                       input_img_shape=(IMAGE_WIDTH, IMAGE_HEIGHT, NUM_CHANNELS),
-    #                       input_ptraj_shape=(PAST_TIME_STEP*2, ),
-    #                       node_num=2048,
-    #                       classes=NUM_TIME_SEQUENCE*2)
+    # model = ResNet50V2(include_top=True, weights=None,
+    #                    input_shape=(IMAGE_WIDTH, IMAGE_HEIGHT, NUM_CHANNELS),
+    #                    classes=FUTURE_TIME_STEP*2)
+    model = ResNet50V2_fc(weights=None,
+                          input_img_shape=(IMAGE_WIDTH, IMAGE_HEIGHT, NUM_CHANNELS),
+                          input_ptraj_shape=(PAST_TIME_STEP*2, ),
+                          node_num=2048,
+                          classes=FUTURE_TIME_STEP*2)
 
     # model = keras.utils.multi_gpu_model(model, gpus=4)
-    model.load_weights('../../../logs/ResNet/checkpoints/20190925-201705weights028.h5')
+    model.load_weights('../../../logs/ResNet/checkpoints/20190927-083623weights018.h5')
     # model.load_weights('new_model.h5')
 
     model.compile(optimizer=keras.optimizers.Adam(),
@@ -56,7 +56,7 @@ def main():
         image = image * 255.0
         image = image.astype(np.uint8)
 
-        # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        print(ADE_3S_array(la, y))
 
         for ind in range(FUTURE_TIME_STEP):
             pos_gt = la[0, [ind, FUTURE_TIME_STEP+ind]]

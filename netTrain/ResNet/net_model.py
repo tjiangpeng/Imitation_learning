@@ -311,6 +311,13 @@ def ResNet(stack_fn,
         # x = keras.layers.Activation('relu', name='post_relu')(x)
         x = keras.layers.LeakyReLU(alpha=0.1, name='post_lrelu')(x)
 
+    # Ensure that the model takes into account
+    # any potential predecessors of `input_tensor`.
+    if input_tensor is not None:
+        inputs = keras.utils.get_source_inputs(input_tensor)
+    else:
+        inputs = img_input
+
     if include_top:
         x = keras.layers.GlobalAveragePooling2D(name='avg_pool')(x)
 
@@ -319,21 +326,16 @@ def ResNet(stack_fn,
 
         # x = keras.layers.Lambda(img_cord_to_real)(x)
         # x = keras.layers.LeakyReLU(alpha=0.1)(x)
+        # Create model.
+        model = keras.Model(inputs=[inputs, keras.layers.Input(shape=(PAST_TIME_STEP * 2,))], outputs=x,
+                            name=model_name)
     else:
         if pooling == 'avg':
             x = keras.layers.GlobalAveragePooling2D(name='avg_pool')(x)
         elif pooling == 'max':
             x = keras.layers.GlobalMaxPooling2D(name='max_pool')(x)
 
-    # Ensure that the model takes into account
-    # any potential predecessors of `input_tensor`.
-    if input_tensor is not None:
-        inputs = keras.utils.get_source_inputs(input_tensor)
-    else:
-        inputs = img_input
-
-    # Create model.
-    model = keras.Model(inputs=[inputs, keras.layers.Input(shape=(PAST_TIME_STEP*2, ))], outputs=x, name=model_name)
+        model = keras.Model(inputs=inputs, outputs=x, name=model_name)
 
     # Load weights.
     if weights is not None:
@@ -446,9 +448,9 @@ def ResNet50V2_fc(weights=None,
     last_layer = resnet_model.get_layer('avg_pool').output
 
     input_ptraj = keras.layers.Input(shape=input_ptraj_shape)
-    input_ptraj_dropout = keras.layers.Dropout(rate=0.5)(input_ptraj)
+    # input_ptraj_dropout = keras.layers.Dropout(rate=0.5)(input_ptraj)
 
-    combined = keras.layers.concatenate([last_layer, input_ptraj_dropout])
+    combined = keras.layers.concatenate([last_layer, input_ptraj])
     x = keras.layers.Dense(node_num, activation='linear', name='fc1')(combined)
     x = keras.layers.LeakyReLU(alpha=0.1, name='fc1_lrelu')(x)
     out = keras.layers.Dense(classes, activation='linear', name='traj')(x)

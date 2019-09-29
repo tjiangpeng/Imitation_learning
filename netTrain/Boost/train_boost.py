@@ -37,14 +37,14 @@ def lr_schedule(epoch):
     # Returns
         lr (float32): learning rate
     """
-    lr = 1e-6
+    lr = 1e-4
     if epoch > 30:
         lr *= 0.5e-3
     elif epoch > 25:
         lr *= 1e-3
     elif epoch > 20:
         lr *= 1e-2
-    elif epoch > 5:
+    elif epoch > 10:
         lr *= 1e-1
     print('Learning rate: ', lr)
     return lr
@@ -74,20 +74,20 @@ def main():
     # ==============================================================================
     # -- Model -----------------------------------------------------------------
     # ==============================================================================
-    model = ResNet50V2(include_top=True, weights=None,
-                       input_shape=(IMAGE_WIDTH, IMAGE_HEIGHT, NUM_CHANNELS),
-                       classes=FUTURE_TIME_STEP*2)
-    # model = ResNet50V2_fc(weights=None,
-    #                       input_img_shape=(IMAGE_WIDTH, IMAGE_HEIGHT, NUM_CHANNELS),
-    #                       input_ptraj_shape=(PAST_TIME_STEP*2, ),
-    #                       node_num=2048,
-    #                       classes=NUM_TIME_SEQUENCE*2)
+    # model = ResNet50V2(include_top=True, weights=None,
+    #                    input_shape=(IMAGE_WIDTH, IMAGE_HEIGHT, NUM_CHANNELS),
+    #                    classes=FUTURE_TIME_STEP*2)
+    model = ResNet50V2_fc(weights=None,
+                          input_img_shape=(IMAGE_WIDTH, IMAGE_HEIGHT, NUM_CHANNELS),
+                          input_ptraj_shape=(PAST_TIME_STEP*2, ),
+                          node_num=2048,
+                          classes=FUTURE_TIME_STEP*2)
 
     # model = keras.utils.multi_gpu_model(model, gpus=4)
-    # model.load_weights('../../../logs/ResNet/checkpoints/20190925-201705weights028.h5')
+    model.load_weights('../../../logs/ResNet/checkpoints/20190926-115346weights018.h5')
 
     model.compile(optimizer=keras.optimizers.Adam(lr=lr_schedule(0)),
-                  loss=ADE_3S,
+                  loss=ADE_FDE_loss,
                   metrics=[ADE_1S, ADE_2S, ADE_3S, FDE_1S, FDE_2S, FDE_3S])
 
     # ==============================================================================
@@ -100,10 +100,10 @@ def main():
         model.optimizer.lr = lr_schedule(epoch)
         start_time = time.time()
 
+        re = [0, 0]  # result of training loss and metrics
         for step in range(STEPS_PER_EPOCH):
             dt, gt = sess.run([input_batch, gt_batch])
 
-            re = [0, 0]  # result of training loss and metrics
             if epoch < NORMAL_TRAIN_EPOCH:
                 out = model.train_on_batch(dt, gt)
                 re = [re[0] + np.array(out)*gt.shape[0], re[1] + gt.shape[0]]
@@ -128,14 +128,15 @@ def main():
                         # Push the hard samples into reservoir
                         reservior.append(dt, gt, ind)
 
+        # Evaluate the validation dataset
+        valid_scores = model.evaluate(valid_dataset, verbose=0, steps=2507)
+
         # Print the training result
-        print(f"--- Training time: {int(time.time()-start_time)} second ---")
+        print(f"--- Time: {int(time.time()-start_time)} second ---")
         for i, score in enumerate(re[0]):
             print(f"--{model.metrics_names[i]}: {score/re[1]}", end=' ')
         print("")
 
-        # Evaluate the validation dataset
-        valid_scores = model.evaluate(valid_dataset, verbose=0, steps=10)
         for i, score in enumerate(valid_scores):
             if i == 0:
                 print(f"--valid_loss: {valid_scores[0]}", end=' ')
@@ -145,9 +146,11 @@ def main():
 
         # Save the best model according to validation result
         if valid_scores[0] < min_loss:
-            if epoch > NORMAL_TRAIN_EPOCH:
+            if epoch >= NORMAL_TRAIN_EPOCH:
                 model.save_weights(f"../../../logs/Boost/checkpoints/{logtime}weights{epoch:03d}.h5")
             min_loss = valid_scores[0]
+
+        print(f"reservoir size: {reservior.size}")
 
 
 if __name__ == '__main__':
