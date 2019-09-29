@@ -30,10 +30,10 @@ class HardSampleReservoir:
                 self.output_data = self.output_data[0:RESERVOIR_MAX_SIZE, :]
 
             self.size = self.output_data.shape[0]
-#        print("----------------------------")
-#        print("Reservoir size")
-#        print(self.size)
-        print(f"--- Append time: {int(time.time() - start_time)} second ---")
+        print("----------------------------")
+        print("Reservoir size")
+        print(self.size)
+        print(f"--- Append time: {(time.time() - start_time)} second ---")
 
     def pop(self):
         start_time = time.time()
@@ -51,7 +51,7 @@ class HardSampleReservoir:
         # print("Buffer size")
         # print(self.output_buffer.shape[0])
 
-        print(f"--- Pop time: {int(time.time() - start_time)} second ---")
+        print(f"--- Pop time: {(time.time() - start_time)} second ---")
         return dt, gt
 
     def push_to_buffer(self, dt, gt):
@@ -92,4 +92,4 @@ class HardSampleReservoir:
 #        print("Reservoir size")
 #        print(self.size)
 
-        print(f"--- Push buffer time: {int(time.time() - start_time)} second ---")
+        print(f"--- Push buffer time: {(time.time() - start_time)} second ---")

@@ -10,7 +10,7 @@ from netTrain.ResNet.net_model import ResNet50V2, ResNet50V2_fc
 from argoData.load_tfrecord_argo import input_fn
 # from utils_custom.load_tfrecord import input_fn
 from utils_custom.utils_argo import ADE_1S, FDE_1S, ADE_2S, FDE_2S, ADE_3S, FDE_3S, ADE_FDE_loss, metrics_array
-from netTrain.Boost.boost_sampler import HardSampleReservoir
+from netTrain.Boost.boost_fast_sampler import HardSampleReservoir
 from hparms import *
 
 # ==============================================================================
@@ -129,7 +129,7 @@ def main():
                         reservior.append(dt, gt, ind)
 
         # Evaluate the validation dataset
-        valid_scores = model.evaluate(valid_dataset, verbose=0, steps=2507)
+        valid_scores = model.evaluate(valid_dataset, verbose=0, steps=100)
 
         # Print the training result
         print(f"--- Time: {int(time.time()-start_time)} second ---")
@@ -150,7 +150,7 @@ def main():
                 model.save_weights(f"../../../logs/Boost/checkpoints/{logtime}weights{epoch:03d}.h5")
             min_loss = valid_scores[0]
 
-        print(f"reservoir size: {reservior.size}")
+        print(f"reservoir size: {reservior.data_size}")
 
 
 if __name__ == '__main__':
