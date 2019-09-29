@@ -16,8 +16,8 @@ from hparms import *
 # ==============================================================================
 # -- Constants -----------------------------------------------------------------
 # ==============================================================================
-# os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-# os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"  # specify which GPU(s) to be used
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"  # specify which GPU(s) to be used
 
 
 # ==============================================================================
@@ -37,7 +37,7 @@ def lr_schedule(epoch):
     # Returns
         lr (float32): learning rate
     """
-    lr = 1e-4
+    lr = 1e-3
     if epoch > 30:
         lr *= 0.5e-3
     elif epoch > 25:
@@ -83,8 +83,8 @@ def main():
                           node_num=2048,
                           classes=FUTURE_TIME_STEP*2)
 
+    model.load_weights('../../../logs/Boost/checkpoints/20190926-115346weights012.h5')
     # model = keras.utils.multi_gpu_model(model, gpus=4)
-    model.load_weights('../../../logs/ResNet/checkpoints/20190926-115346weights018.h5')
 
     model.compile(optimizer=keras.optimizers.Adam(lr=lr_schedule(0)),
                   loss=ADE_FDE_loss,
@@ -129,7 +129,7 @@ def main():
                         reservior.append(dt, gt, ind)
 
         # Evaluate the validation dataset
-        valid_scores = model.evaluate(valid_dataset, verbose=0, steps=100)
+        valid_scores = model.evaluate(valid_dataset, verbose=0, steps=int(40127/BATCH_SIZE))
 
         # Print the training result
         print(f"--- Time: {int(time.time()-start_time)} second ---")
