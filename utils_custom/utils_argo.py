@@ -110,3 +110,23 @@ def metrics_array(y_true: np.ndarray, y_pred: np.ndarray):
     ade_3s = np.mean(de[:, 0:30], axis=1).reshape((-1, 1))
 
     return np.concatenate((ade_1s, ade_2s, ade_3s, de[:, [9, 19, 29]]), axis=1)
+
+
+def new_loss(y_true, y_pred):
+
+    true_x = y_true[:, 0:30]
+    pred_x = y_pred[:, 0:30]
+    true_y = y_true[:, 30:60]
+    pred_y = y_pred[:, 30:60]
+
+    de = tf.math.reduce_mean(tf.math.sqrt((true_x - pred_x)**2 + (true_y - pred_y)**2), axis=0)
+
+    fde_1s = de[9]
+    fde_2s = de[19]
+    fde_3s = de[29]
+
+    ade_1s = tf.math.reduce_mean(de[0:10])
+    ade_1_2s = tf.math.reduce_mean(de[10:20])
+    ade_2_3s = tf.math.reduce_mean(de[20:30])
+
+    return ade_1s + 5*ade_1_2s + 10*ade_2_3s + fde_1s + 5*fde_2s + 10*fde_3s
